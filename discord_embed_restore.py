@@ -1,0 +1,454 @@
+"""
+Enhanced Discord embed builder with COMPACT horizontal formatting
+Version 2.0 - Focus on width over height for better readability
+FIXED: Discord 400 errors, embed size validation, field limits
+"""
+
+from typing import Dict, List, Optional
+from datetime import datetime, timedelta
+from config import *
+from analysis import AnalysisEngine
+from discord_sender import DiscordSender
+
+
+class DiscordEmbedBuilder:
+    """Builds beautiful, COMPACT Discord embeds with horizontal layout"""
+    
+    def __init__(self, webhook_url: str, db_manager):
+        self.webhook_url = webhook_url
+        self.db = db_manager
+        self.analysis = AnalysisEngine()
+        self.sender = DiscordSender(webhook_url)
+    
+    def _validate_field(self, field):
+        """Validate Discord embed field to prevent 400 errors"""
+        if not field:
+            return False
+        if not field.get('name') or not field.get('value'):
+            return False
+        value_str = str(field['value']).strip()
+        if len(value_str) == 0 or value_str == 'N/A':
+            return False
+        # Discord limits
+        if len(str(field['name'])) > 256:
+            field['name'] = str(field['name'])[:253] + '...'
+        if len(value_str) > 1024:
+            field['value'] = value_str[:1021] + '...'
+        return True
+    
+    def _count_embed_chars(self, embed: Dict) -> int:
+        """Count total characters in embed"""
+        total = 0
+        if 'title' in embed:
+            total += len(str(embed['title']))
+        if 'description' in embed:
+            total += len(str(embed['description']))
+        if 'footer' in embed and 'text' in embed['footer']:
+            total += len(str(embed['footer']['text']))
+        for field in embed.get('fields', []):
+            total += len(str(field.get('name', '')))
+            total += len(str(field.get('value', '')))
+        return total
+    
+    def send_discord_embed(self, post_data: Dict, stock_data_list: List[Dict]) -> bool:
+        """Send COMPACT formatted embed to Discord - with size limits"""
+        try:
+            # Limit stocks to prevent embed overflow (Discord 400 errors)
+            # Multiple stocks can cause total char count > 6000
+            MAX_STOCKS_PER_EMBED = 2  # Reduced from unlimited to prevent 400 errors
+            
+            if len(stock_data_list) > MAX_STOCKS_PER_EMBED:
+                print(f"   ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â  Limiting to {MAX_STOCKS_PER_EMBED} stocks (found {len(stock_data_list)})")
+                stock_data_list = stock_data_list[:MAX_STOCKS_PER_EMBED]
+            
+            embeds = []
+            quality_score = post_data.get('quality_score', 0)
+            
+            # Build single comprehensive embed with post + stocks
+            main_embed = self._build_unified_embed(post_data, stock_data_list, quality_score)
+            
+            # Validate embed size
+            char_count = self._count_embed_chars(main_embed)
+            if char_count > 5500:  # Leave buffer under 6000 limit
+                print(f"   ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â  Embed too large ({char_count} chars), using fallback format...")
+                # Fallback: Reduce to 1 stock only
+                main_embed = self._build_unified_embed(post_data, stock_data_list[:1], quality_score)
+            
+            embeds.append(main_embed)
+            
+            # Send to Discord
+            return self.sender.send_embeds(embeds, post_data['title'])
+                
+        except Exception as e:
+            print(f"Error sending to Discord: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def _build_unified_embed(self, post_data: Dict, stock_data_list: List[Dict], quality_score: float) -> Dict:
+        """Build SINGLE unified embed with post header + all stocks (COMPACT)"""
+        
+        # Determine quality and color
+        if quality_score >= PREMIUM_DD_SCORE:
+            quality_emoji, quality_text, color = "💎", "PREMIUM DD", COLOR_PREMIUM
+        elif quality_score >= QUALITY_DD_SCORE:
+            quality_emoji, quality_text, color = "⭐", "QUALITY DD", COLOR_QUALITY
+        else:
+            quality_emoji, quality_text, color = "ðŸ“ŠÂ ", "Standard DD", COLOR_STANDARD
+        
+        # Get sentiment data
+        sentiment = post_data.get('sentiment', {})
+        sentiment_text = sentiment.get('sentiment', 'NEUTRAL')
+        sentiment_confidence = sentiment.get('confidence', 0)
+        
+        # Sentiment emoji
+        if sentiment_text == 'BULLISH':
+            sentiment_emoji = '🟢'
+        elif sentiment_text == 'BEARISH':
+            sentiment_emoji = 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´'
+        else:
+            sentiment_emoji = '🟡'
+        
+        # Build compact description
+        time_ago = self._get_time_ago(datetime.now())
+        
+        description = f"""**📉Â r/{post_data['subreddit']}** • {post_data.get('score', 0):,}â¬†Â ÃƒÂ¯Ã‚Â¸Ã‚Â {post_data.get('num_comments', 0):,}💬 • {post_data.get('upvote_ratio', 0)*100:.0f}% upvoted • Quality: **{quality_score:.0f}/100**
+**{sentiment_emoji} Sentiment:** {sentiment_text} ({sentiment_confidence:.0%} confidence) • {time_ago}"""
+        
+        if post_data.get('flair'):
+            description = f"**ÃƒÂ°Ã…Â¸Ã‚ÂÃ‚Â·ÃƒÂ¯Ã‚Â¸Ã‚Â {post_data['flair']}**\n{description}"
+        
+        # Build fields for all stocks
+        fields = []
+        
+        for i, stock_data in enumerate(stock_data_list):
+            if not stock_data:
+                continue
+            
+            ticker = stock_data['ticker']
+            
+            # Add separator between stocks (except first)
+            if i > 0:
+                fields.append({
+                    "name": "ÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚ÂÃƒÂ¢Ã¢â‚¬ÂÃ‚Â",
+                    "value": "\u200b",  # Zero-width space
+                    "inline": False
+                })
+            
+            # Stock header
+            fields.append({
+                "name": f"${ticker} • {stock_data['name'][:50]}",
+                "value": f"**{stock_data['sector']}** • {stock_data['industry'][:40]}",
+                "inline": False
+            })
+            
+            # Build compact stock fields
+            stock_fields = self._build_compact_stock_fields(stock_data)
+            fields.extend(stock_fields)
+        
+        # Filter valid fields
+        fields = [f for f in fields if self._validate_field(f)]
+        
+        return {
+            "title": f"{quality_emoji} {quality_text}: {post_data['title'][:150]}",
+            "url": post_data['url'],
+            "color": color,
+            "description": description,
+            "fields": fields,
+            "timestamp": datetime.utcnow().isoformat(),
+            "footer": {"text": f"💎 Turd News Network Enhanced v4.0 | {len(stock_data_list)} stock{'s' if len(stock_data_list) != 1 else ''} analyzed"}
+        }
+    
+    def _build_compact_stock_fields(self, sd: Dict) -> List[Dict]:
+        """Build COMPACT horizontal fields for a single stock"""
+        fields = []
+        ticker = sd['ticker']
+        
+        # Get all analysis data
+        stats = self.db.get_stock_stats(ticker)
+        risk_assessment = self.analysis.get_risk_assessment(sd)
+        technical_indicators = sd.get('technical_indicators', {})
+        tech_analysis = self.analysis.get_technical_analysis_summary(technical_indicators, sd['price'])
+        backtest = sd.get('backtest')
+        mtf_performance = sd.get('mtf_performance', {})
+        
+        # Row 1: Price, Volume, Market Cap (3 columns)
+        price_field = self._build_price_compact(sd)
+        volume_field = self._build_volume_compact(sd)
+        mcap_field = self._build_mcap_compact(sd)
+        
+        if price_field: fields.append(price_field)
+        if volume_field: fields.append(volume_field)
+        if mcap_field: fields.append(mcap_field)
+        
+        # Row 2: Valuation, Profitability, Health (3 columns)
+        val_field = self._build_valuation_compact(sd)
+        prof_field = self._build_profitability_compact(sd)
+        health_field = self._build_health_compact(sd)
+        
+        if val_field: fields.append(val_field)
+        if prof_field: fields.append(prof_field)
+        if health_field: fields.append(health_field)
+        
+        # Row 3: Performance Timeline (full width)
+        perf_field = self._build_performance_timeline(mtf_performance)
+        if perf_field: fields.append(perf_field)
+        
+        # Row 4: Backtest Summary (full width) - SIMPLIFIED to save space
+        if backtest:
+            backtest_field = self._build_backtest_compact(backtest, sd['price'])
+            if backtest_field: fields.append(backtest_field)
+        
+        # Row 5: Risk & Technical Signal (2 columns side by side)
+        risk_field = self._build_risk_compact(risk_assessment)
+        tech_field = self._build_technical_compact(tech_analysis)
+        
+        if risk_field: fields.append(risk_field)
+        if tech_field: fields.append(tech_field)
+        
+        # Row 6: Track Record (if exists, full width)
+        if stats:
+            track_field = self._build_track_record_compact(stats)
+            if track_field: fields.append(track_field)
+        
+        # Row 7: Quick Links (full width, single row) - REMOVED news to save space
+        links_field = self._build_quick_links(sd)
+        if links_field: fields.append(links_field)
+        
+        return fields
+    
+    def _build_price_compact(self, sd: Dict) -> Dict:
+        """Compact price field"""
+        change_emoji = "📈" if sd['change_pct'] >= 0 else "📉"
+        change_color = "🟢" if sd['change_pct'] >= 0 else "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´"
+        
+        value = f"**${sd['price']:,.2f}** {change_color}\n{change_emoji} **{sd['change_pct']:+.2f}%**"
+        
+        if sd['52w_high'] and sd['52w_low']:
+            value += f"\n52W: ${sd['52w_low']:.0f}-${sd['52w_high']:.0f}"
+        
+        return {"name": "💵 Price", "value": value, "inline": True}
+    
+    def _build_volume_compact(self, sd: Dict) -> Optional[Dict]:
+        """Compact volume field"""
+        if not sd['volume']:
+            return None
+        
+        volume_str = self._format_volume(sd['volume'])
+        
+        lines = [f"**{volume_str}**"]
+        
+        if sd['avg_volume']:
+            ratio = sd['volume'] / sd['avg_volume']
+            if ratio > HIGH_VOLUME_THRESHOLD:
+                lines.append(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥ **{ratio:.1f}x** avg")
+            elif ratio < LOW_VOLUME_THRESHOLD:
+                lines.append(f"ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â **{ratio:.1f}x** avg")
+            else:
+                lines.append(f"**{ratio:.1f}x** avg")
+        
+        return {"name": "📦 Volume", "value": "\n".join(lines), "inline": True}
+    
+    def _build_mcap_compact(self, sd: Dict) -> Optional[Dict]:
+        """Compact market cap field"""
+        if not sd['market_cap']:
+            return None
+        
+        mcap_str = self.analysis.format_number(sd['market_cap'])
+        
+        # Market cap category
+        mcap = sd['market_cap']
+        if mcap < 300_000_000:
+            category = "Micro ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´"
+        elif mcap < 2_000_000_000:
+            category = "Small ÃƒÂ°Ã…Â¸Ã…Â¸Ã‚Â "
+        elif mcap < 10_000_000_000:
+            category = "Mid 🟡"
+        else:
+            category = "Large 🟢"
+        
+        return {"name": "ÃƒÂ°Ã…Â¸Ã‚ÂÃ‚Â¢ Market Cap", "value": f"**{mcap_str}**\n{category}", "inline": True}
+    
+    def _build_valuation_compact(self, sd: Dict) -> Optional[Dict]:
+        """Compact valuation metrics - horizontal format"""
+        parts = []
+        
+        if sd['pe_ratio'] and sd['pe_ratio'] > 0:
+            parts.append(f"P/E: **{sd['pe_ratio']:.1f}**")
+        
+        if sd['peg_ratio']:
+            emoji = "ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦" if sd['peg_ratio'] < 1 else "ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â" if sd['peg_ratio'] > 2 else "ÃƒÂ¢Ã…Â¾Ã¢â‚¬â€œ"
+            parts.append(f"PEG: **{sd['peg_ratio']:.2f}** {emoji}")
+        
+        if sd['price_to_book']:
+            parts.append(f"P/B: **{sd['price_to_book']:.2f}**")
+        
+        if not parts:
+            return None
+        
+        return {"name": "ðŸ“ŠÂ  Valuation", "value": " | ".join(parts), "inline": True}
+    
+    def _build_profitability_compact(self, sd: Dict) -> Optional[Dict]:
+        """Compact profitability metrics"""
+        parts = []
+        
+        if sd['profit_margin'] is not None:
+            emoji = "🟢" if sd['profit_margin'] > 0.15 else "🟡" if sd['profit_margin'] > 0 else "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´"
+            parts.append(f"Margin: **{sd['profit_margin']*100:.1f}%** {emoji}")
+        
+        if sd['roe'] is not None:
+            emoji = "🟢" if sd['roe'] > 0.15 else "🟡" if sd['roe'] > 0 else "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´"
+            parts.append(f"ROE: **{sd['roe']*100:.1f}%** {emoji}")
+        
+        if not parts:
+            return None
+        
+        return {"name": "💰 Profitability", "value": "\n".join(parts), "inline": True}
+    
+    def _build_health_compact(self, sd: Dict) -> Optional[Dict]:
+        """Compact financial health metrics"""
+        parts = []
+        
+        if sd['debt_to_equity'] is not None:
+            emoji = "🟢" if sd['debt_to_equity'] < 1 else "🟡" if sd['debt_to_equity'] < 2 else "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´"
+            parts.append(f"D/E: **{sd['debt_to_equity']:.2f}** {emoji}")
+        
+        if sd['current_ratio'] is not None:
+            emoji = "🟢" if sd['current_ratio'] > 1.5 else "🟡" if sd['current_ratio'] > 1 else "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´"
+            parts.append(f"CR: **{sd['current_ratio']:.2f}** {emoji}")
+        
+        if not parts:
+            return None
+        
+        return {"name": "ÃƒÂ¢Ã…Â¡Ã¢â‚¬â€œÃƒÂ¯Ã‚Â¸Ã‚Â Health", "value": "\n".join(parts), "inline": True}
+    
+    def _build_performance_timeline(self, mtf: Dict) -> Optional[Dict]:
+        """Build compact performance timeline"""
+        if not mtf:
+            return None
+        
+        # Filter and sort periods
+        period_order = ['1M', '3M', '6M', '1Y']  # Reduced to save space
+        available = [(p, mtf[p]) for p in period_order if p in mtf and mtf[p] is not None]
+        
+        if not available:
+            return None
+        
+        # Build horizontal bar
+        parts = []
+        for period, value in available:
+            emoji = "🟢" if value > 0 else "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´"
+            parts.append(f"**{period}:** {emoji} {value:+.1f}%")
+        
+        return {
+            "name": "ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¦ Performance Timeline",
+            "value": " ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡ ".join(parts),
+            "inline": False
+        }
+    
+    def _build_backtest_compact(self, backtest: Dict, current_price: float) -> Optional[Dict]:
+        """Ultra compact backtest summary - single line"""
+        if not backtest:
+            return None
+        
+        sharpe_emoji = "🟢" if backtest['sharpe_ratio'] > 1 else "🟡" if backtest['sharpe_ratio'] > 0 else "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´"
+        vs_spy = "📈" if backtest['excess_return'] > 0 else "📉"
+        
+        value = (f"**3Y:** {backtest['total_return']:+.1f}% ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡ "
+                f"**vs SPY:** {vs_spy} {backtest['excess_return']:+.1f}% ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡ "
+                f"**Sharpe:** {sharpe_emoji} {backtest['sharpe_ratio']:.2f}")
+        
+        return {
+            "name": "📈 3-Year Backtest",
+            "value": value,
+            "inline": False
+        }
+    
+    def _build_risk_compact(self, risk: Dict) -> Dict:
+        """Compact risk assessment"""
+        # Take top 2 risk factors to save space
+        factors = risk['risk_factors'][:2]
+        value = risk['risk_level'] + "\n" + " • ".join(factors)
+        
+        return {"name": "ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Risk Profile", "value": value[:400], "inline": False}
+    
+    def _build_technical_compact(self, tech: Dict) -> Optional[Dict]:
+        """Compact technical analysis - horizontal"""
+        if not tech.get('details'):
+            return None
+        
+        signal = tech['signal']
+        emoji = "🟢" if signal == "BULLISH" else "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´" if signal == "BEARISH" else "🟡"
+        
+        # Get key indicators only (first 2)
+        indicators = []
+        for detail in tech['details'][:2]:
+            # Extract just the key part
+            if 'RSI' in detail or 'MA' in detail or 'MACD' in detail:
+                indicators.append(detail.split('**')[1] if '**' in detail else detail[:20])
+        
+        value = f"**Signal: {emoji} {signal}**\n" + " • ".join(indicators[:2])
+        
+        return {"name": "ðŸ“ŠÂ  Technicals", "value": value, "inline": False}
+    
+    def _build_track_record_compact(self, stats: Dict) -> Dict:
+        """Compact track record - single line"""
+        win_emoji = "🟢" if stats['win_rate'] >= 50 else "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´"
+        
+        value = (f"**{stats['wins']}W-{stats['losses']}L** ({win_emoji} {stats['win_rate']:.0f}%) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡ "
+                f"**Avg:** {stats['avg_change']:+.1f}% ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡ "
+                f"**Best:** +{stats['best_gain']:.1f}%")
+        
+        return {
+            "name": "ðŸ¯ Reddit DD Track Record",
+            "value": value,
+            "inline": False
+        }
+    
+    def _build_quick_links(self, sd: Dict) -> Dict:
+        """Compact quick links - single row"""
+        ticker = sd['ticker']
+        
+        links = (f"[ðŸ“ŠÂ  Yahoo]({sd['yahoo_link']}) • "
+                f"[📈 TradingView]({sd['tradingview_link']}) • "
+                f"[📉 Finviz]({sd['finviz_link']})")
+        
+        return {
+            "name": "ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬â€ Quick Links",
+            "value": links,
+            "inline": False
+        }
+    
+    def _format_volume(self, volume: int) -> str:
+        """Format volume for readability"""
+        if volume >= 1_000_000_000:
+            return f"{volume/1_000_000_000:.2f}B"
+        elif volume >= 1_000_000:
+            return f"{volume/1_000_000:.2f}M"
+        elif volume >= 1_000:
+            return f"{volume/1_000:.2f}K"
+        else:
+            return f"{volume:,}"
+    
+    def _get_time_ago(self, dt: datetime) -> str:
+        """Get human-readable time ago string"""
+        now = datetime.now()
+        diff = now - dt
+        
+        if diff.total_seconds() < 60:
+            return "Just now"
+        elif diff.total_seconds() < 3600:
+            mins = int(diff.total_seconds() / 60)
+            return f"{mins} min{'s' if mins != 1 else ''} ago"
+        elif diff.total_seconds() < 86400:
+            hours = int(diff.total_seconds() / 3600)
+            return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        elif diff.days == 1:
+            return "Yesterday"
+        elif diff.days < 7:
+            return f"{diff.days} days ago"
+        elif diff.days < 30:
+            weeks = diff.days // 7
+            return f"{weeks} week{'s' if weeks != 1 else ''} ago"
+        else:
+            return dt.strftime('%b %d, %Y')

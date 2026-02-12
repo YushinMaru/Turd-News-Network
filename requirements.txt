@@ -1,0 +1,28 @@
+requests>=2.31.0
+yfinance>=0.2.36
+beautifulsoup4>=4.12.0
+vaderSentiment>=3.3.2
+numpy>=1.24.0
+pandas>=2.0.0
+lxml>=4.9.0
+transformers>=4.30.0
+torch>=2.0.0
+matplotlib>=3.7.0
+mplfinance>=0.12.9b7
+scikit-learn>=1.3.0
+joblib>=1.3.0
+
+# Discord Bot Dependencies
+discord.py>=2.3.0
+
+# PDF Generation Dependencies
+reportlab>=4.0.0
+Pillow>=10.0.0
+
+# Additional dependencies for interactive dashboard
+aiohttp>=3.9.0
+
+# Twitter scraping (twikit - no API key needed)
+twikit>=1.0.0
+pytz>=2023.3
+scipy>=1.10.0
