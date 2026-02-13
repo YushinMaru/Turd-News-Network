@@ -646,13 +646,19 @@ class StockDataFetcher:
 
             # Generate chart image if enabled
             if ENABLE_CHARTS:
-                chart_path = self._generate_chart(
-                    display_ticker, hist,
-                    w52_high=data.get('52w_high'),
-                    w52_low=data.get('52w_low')
-                )
-                if chart_path:
-                    data['chart_path'] = chart_path
+                try:
+                    chart_path = self._generate_chart(
+                        display_ticker, hist,
+                        w52_high=data.get('52w_high'),
+                        w52_low=data.get('52w_low')
+                    )
+                    if chart_path and os.path.exists(chart_path):
+                        data['chart_path'] = chart_path
+                        print(f"   [CHART] Generated chart for {ticker}: {chart_path}")
+                    else:
+                        print(f"   [!] Chart generation returned None or file not found for {ticker}")
+                except Exception as e:
+                    print(f"   [!] Chart generation error for {ticker}: {e}")
 
             # Fetch options data if enabled
             if ENABLE_OPTIONS_FLOW:
