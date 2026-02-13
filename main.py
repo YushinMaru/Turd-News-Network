@@ -723,6 +723,7 @@ class DashboardBot(commands.Bot):
         print(f">> Starting Reddit Scan...")
         
         all_posts = self.scraper.scrape_all_subreddits()
+        print(f"[DEBUG] Scraped {len(all_posts)} posts from subreddits")
         
         for post in all_posts:
             post['quality_score'] = self.analysis.calculate_quality_score(post)
@@ -735,44 +736,74 @@ class DashboardBot(commands.Bot):
         print(f"[STATS] Found {len(all_posts)} DD posts")
         
         processed = 0
+        skipped_already_sent = 0
+        skipped_no_tickers = 0
+        skipped_no_stock_data = 0
+        
         for post in all_posts:
-            if self.db.is_post_already_sent(post['id']):
+            post_id = post.get('id', 'unknown')
+            
+            if self.db.is_post_already_sent(post_id):
+                skipped_already_sent += 1
                 continue
             
             combined = post['title'] + ' ' + post['selftext']
             tickers = self.scraper.extract_tickers(combined)
+            print(f"[DEBUG] Post {post_id}: Found tickers: {tickers}")
             
             if not tickers:
+                skipped_no_tickers += 1
+                print(f"[DEBUG] Post {post_id}: No tickers found, skipping")
                 continue
             
             stock_list = []
             for ticker in tickers:
+                print(f"[DEBUG] Fetching data for ticker: {ticker}")
                 data = self.stock_fetcher.get_stock_data(ticker)
                 if data:
                     stock_list.append(data)
-                    self.db.save_stock_tracking(ticker, post['id'], data.get('price', 0))
+                    self.db.save_stock_tracking(ticker, post_id, data.get('price', 0))
+                    print(f"[DEBUG] Got stock data for {ticker}: price={data.get('price')}")
+                else:
+                    print(f"[DEBUG] No stock data for {ticker}")
                 time.sleep(API_DELAY)
             
             if stock_list:
-                await self.send_to_stonks_channel(post, stock_list)
+                print(f"[DEBUG] Sending {len(stock_list)} stocks to Discord: {[s.get('ticker') for s in stock_list]}")
+                result = await self.send_to_stonks_channel(post, stock_list)
+                if result:
+                    print(f"[DEBUG] Successfully sent post to Discord")
+                else:
+                    print(f"[WARNING] Failed to send post to Discord")
                 self.db.save_post(post, tickers, post['quality_score'], "")
                 processed += 1
+            else:
+                skipped_no_stock_data += 1
+                print(f"[DEBUG] No stock data found for any ticker, skipping post")
         
-        print(f"[COMPLETE] Processed: {processed}/{len(all_posts)}")
+        print(f"[COMPLETE] Processed: {processed}/{len(all_posts)} (skipped: already_sent={skipped_already_sent}, no_tickers={skipped_no_tickers}, no_stock_data={skipped_no_stock_data})")
     
     async def send_to_stonks_channel(self, post, stock_list):
         try:
+            print(f"[DEBUG] send_to_stonks_channel called. Guilds: {len(self.guilds)}")
+            
             for guild in self.guilds:
+                print(f"[DEBUG] Checking guild: {guild.name}")
+                
                 # Find the stonks channel
                 stonks_channel = None
                 for ch in guild.text_channels:
+                    print(f"[DEBUG] Found channel: {ch.name}")
                     if ch.name == "stonks":
                         stonks_channel = ch
+                        print(f"[DEBUG] Found #stonks channel!")
                         break
                 
                 if not stonks_channel:
-                    print(f"[DD POST] No #stonks channel found in {guild.name}")
+                    print(f"[ERROR] No #stonks channel found in {guild.name}!")
                     continue
+                
+                print(f"[DEBUG] Posting to #{stonks_channel.name} in {guild.name}")
                 
                 quality = post.get('quality_score', 0)
                 q_emoji = "💎" if quality >= 80 else "⭐" if quality >= 60 else "📊"
@@ -805,9 +836,14 @@ class DashboardBot(commands.Bot):
                 
                 embed.set_footer(text="Turd News Network v6.0")
                 await stonks_channel.send(embed=embed)
+                print(f"[DEBUG] Successfully sent embed to #{stonks_channel.name}")
+                return True
                 
         except Exception as e:
-            print(f"[ERROR] {e}")
+            print(f"[ERROR] send_to_stonks_channel failed: {e}")
+            traceback.print_exc()
+            return False
+        return False
 
 
 # ============== MAIN ==============
