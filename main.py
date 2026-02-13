@@ -813,30 +813,78 @@ class DashboardBot(commands.Bot):
                 sent_text = sentiment.get('sentiment', 'NEUTRAL')
                 sent_emoji = "🟢" if sent_text == 'BULLISH' else "🔴" if sent_text == 'BEARISH' else "🟡"
                 
-                embed = discord.Embed(
+                # Post title
+                title_embed = discord.Embed(
                     title=f"{q_emoji} {post['title'][:200]}",
                     url=post['url'],
                     color=color,
                     timestamp=datetime.now()
                 )
+                title_embed.description = f"**r/{post['subreddit']}** | {sent_emoji} {sent_text} | ⭐ {quality:.0f}/100"
+                title_embed.set_footer(text="Turd News Network v6.0 | Due Diligence Scanner")
+                await stonks_channel.send(embed=title_embed)
                 
-                embed.description = f"**r/{post['subreddit']}** | {sent_emoji} {sent_text} | ⭐ {quality:.0f}/100"
-                
+                # For each stock, generate 3 detailed embeds using TickerReportBuilder
                 for sd in stock_list[:3]:
-                    ticker = sd.get('ticker', 'N/A')
-                    price = sd.get('price', 0)
-                    change = sd.get('change_pct', 0)
-                    c_emoji = "🟢" if change >= 0 else "🔴"
+                    ticker = sd.get('ticker')
+                    if not ticker:
+                        continue
                     
-                    embed.add_field(
-                        name=f"${ticker}",
-                        value=f"${price:.2f} {c_emoji} {change:+.2f}%",
-                        inline=True
-                    )
+                    print(f"[DEBUG] Building detailed embeds for {ticker}")
+                    
+                    # Use TickerReportBuilder to get the detailed embeds
+                    try:
+                        from ticker_report import TickerReportBuilder
+                        builder = TickerReportBuilder()
+                        
+                        # Build the 10 embeds (we'll use specific ones)
+                        loop = asyncio.get_running_loop()
+                        embeds_list, chart_path = await loop.run_in_executor(
+                            None, builder.build_report_sync, ticker
+                        )
+                        
+                        if embeds_list:
+                            # Send 3 detailed embeds: Signals/ML, Insider/Congress, Analyst/News
+                            # Embed 7: Signals & ML (index 6)
+                            # Embed 9: Insider/Congress (index 8)
+                            # Embed 10: Analyst/News (index 9)
+                            
+                            embed_indices = [6, 8, 9]  # Signals, Insider, Analyst
+                            
+                            for idx in embed_indices:
+                                if idx < len(embeds_list):
+                                    embed_dict = embeds_list[idx]
+                                    embed = discord.Embed(
+                                        title=embed_dict.get('title'),
+                                        description=embed_dict.get('description'),
+                                        color=embed_dict.get('color', 0x3498DB),
+                                        url=embed_dict.get('url')
+                                    )
+                                    for field in embed_dict.get('fields', []):
+                                        embed.add_field(
+                                            name=field.get('name', '\u200b')[:256],
+                                            value=str(field.get('value', '\u200b'))[:1024],
+                                            inline=field.get('inline', False)
+                                        )
+                                    if embed_dict.get('footer', {}).get('text'):
+                                        embed.set_footer(text=embed_dict['footer']['text'])
+                                    if embed_dict.get('thumbnail', {}).get('url'):
+                                        embed.set_thumbnail(url=embed_dict['thumbnail']['url'])
+                                    
+                                    await stonks_channel.send(embed=embed)
+                                    await asyncio.sleep(0.5)  # Small delay between embeds
+                                    
+                            print(f"[DEBUG] Sent 3 detailed embeds for {ticker}")
+                        else:
+                            # Fallback to simple embed if builder fails
+                            await self._send_simple_embed(stonks_channel, sd, post)
+                            
+                    except Exception as e:
+                        print(f"[ERROR] TickerReportBuilder failed: {e}")
+                        # Fallback to simple embed
+                        await self._send_simple_embed(stonks_channel, sd, post)
                 
-                embed.set_footer(text="Turd News Network v6.0")
-                await stonks_channel.send(embed=embed)
-                print(f"[DEBUG] Successfully sent embed to #{stonks_channel.name}")
+                print(f"[DEBUG] Successfully sent all embeds to #{stonks_channel.name}")
                 return True
                 
         except Exception as e:
@@ -844,6 +892,35 @@ class DashboardBot(commands.Bot):
             traceback.print_exc()
             return False
         return False
+    
+    async def _send_simple_embed(self, channel, sd, post):
+        """Fallback simple embed if TickerReportBuilder fails"""
+        ticker = sd.get('ticker', 'N/A')
+        price = sd.get('price', 0)
+        change = sd.get('change_pct', 0)
+        sector = sd.get('sector', 'N/A')
+        
+        c_emoji = "🟢" if change >= 0 else "🔴"
+        
+        embed = discord.Embed(
+            title=f"📊 {ticker} - {sector}",
+            color=0x3498DB
+        )
+        embed.add_field(
+            name=f"💰 Price",
+            value=f"**${price:.2f}** {c_emoji} {change:+.2f}%",
+            inline=True
+        )
+        
+        # Add available data
+        if sd.get('pe_ratio'):
+            embed.add_field(name="📈 P/E", value=f"{sd.get('pe_ratio'):.1f}", inline=True)
+        if sd.get('market_cap'):
+            mc = sd.get('market_cap')
+            mc_str = f"${mc/1e9:.1f}B" if mc >= 1e9 else f"${mc/1e6:.1f}M"
+            embed.add_field(name="🏢 Market Cap", value=mc_str, inline=True)
+        
+        await channel.send(embed=embed)
 
 
 # ============== MAIN ==============
