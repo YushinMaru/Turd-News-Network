@@ -183,12 +183,23 @@ class TickerReportBuilder:
         valid_ticker = self.stock_fetcher._valid_ticker_cache.get(symbol, symbol)
         extra = self._fetch_extra_data(symbol, valid_ticker)
 
-        # 4. Build 3 COMPREHENSIVE embeds
-        embeds = [
-            self._embed_sentiment_ml(stock_data, extra),      # Embed 1: Sentiment + ML + Prediction
-            self._embed_insider_congress(stock_data, extra),  # Embed 2: Insider + Congress
-            self._embed_company_info(stock_data, extra),      # Embed 3: All Company Info
-        ]
+        # 4. Build 3 COMPREHENSIVE embeds - wrapped in try/except to NEVER fail
+        try:
+            embeds = [
+                self._embed_company_info(stock_data, extra),      # Embed 1: Company Overview FIRST
+                self._embed_sentiment_ml(stock_data, extra),      # Embed 2: Sentiment + ML + Prediction
+                self._embed_insider_congress(stock_data, extra),  # Embed 3: Insider + Congress
+            ]
+        except Exception as e:
+            print(f"[TickerReport] Error building embeds: {e}")
+            # Return basic embed as fallback
+            embeds = [{
+                "title": f"📊 {ticker} - {stock_data.get('name', ticker)}",
+                "color": COLOR_REPORT_OVERVIEW,
+                "fields": [{"name": "Data", "value": f"Price: ${stock_data.get('price', 'N/A')}", "inline": True}],
+                "footer": {"text": "Turd News Network v6.0"},
+                "timestamp": datetime.utcnow().isoformat(),
+            }]
 
         chart_path = stock_data.get('chart_path')
         return embeds, chart_path
@@ -444,6 +455,14 @@ class TickerReportBuilder:
         overview += f"Sector: {sector} | Industry: {industry}\n"
         overview += f"Employees: {emp_str}"
         fields.append({"name": "🏢 COMPANY OVERVIEW", "value": overview, "inline": False})
+        
+        # ===== COMPANY DESCRIPTION =====
+        description = sd.get('description', '')
+        if description:
+            # Truncate to fit in embed
+            if len(description) > 500:
+                description = description[:497] + "..."
+            fields.append({"name": "📋 ABOUT", "value": description, "inline": False})
 
         # ===== PRICE & MARKET DATA =====
         change = sd.get('change_pct', 0)
