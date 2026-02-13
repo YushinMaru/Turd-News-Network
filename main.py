@@ -42,6 +42,7 @@ class SearchModal(discord.ui.Modal, title="🔍 Quick Search"):
     
     async def on_submit(self, interaction: discord.Interaction):
         ticker = self.ticker_input.value.strip().upper()
+        print(f"[DASHBOARD] SearchModal submitted for ticker: {ticker} by user: {interaction.user.id}")
         
         await interaction.response.defer(ephemeral=True, thinking=True)
         
@@ -479,50 +480,76 @@ class OverviewView(discord.ui.View):
     # === ROW 1: Search & Reports ===
     @discord.ui.button(label="🔍 Quick Search", style=discord.ButtonStyle.primary, row=0)
     async def search_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(SearchModal())
+        try:
+            print(f"[DASHBOARD] Quick Search button clicked by user {interaction.user.id}")
+            await interaction.response.send_modal(SearchModal())
+        except Exception as e:
+            print(f"[DASHBOARD ERROR] Quick Search button: {e}")
+            traceback.print_exc()
+            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
     
     @discord.ui.button(label="📊 Full Report", style=discord.ButtonStyle.primary, row=0)
     async def reports_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(ReportsModal())
+        try:
+            print(f"[DASHBOARD] Full Report button clicked by user {interaction.user.id}")
+            await interaction.response.send_modal(ReportsModal())
+        except Exception as e:
+            print(f"[DASHBOARD ERROR] Full Report button: {e}")
+            traceback.print_exc()
+            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
     
     @discord.ui.button(label="⭐ Watchlist", style=discord.ButtonStyle.success, row=0)
     async def watchlist_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        user_id = str(interaction.user.id)
-        
-        # Try to use watchlist manager, fall back to simple message
         try:
-            if hasattr(self, 'watchlist_manager') and self.watchlist_manager:
-                self.watchlist_manager.db.ensure_user_exists(user_id, username=interaction.user.name)
-                watchlist = self.watchlist_manager.db.get_user_watchlist(user_id)
-                
-                if watchlist:
-                    stocks = "\n".join([f"• ${item['ticker']}" for item in watchlist[:10]])
-                    desc = f"**Your tracked stocks:**\n{stocks}"
+            print(f"[DASHBOARD] Watchlist button clicked by user {interaction.user.id}")
+            user_id = str(interaction.user.id)
+            
+            # Try to use watchlist manager, fall back to simple message
+            try:
+                if hasattr(self, 'watchlist_manager') and self.watchlist_manager:
+                    self.watchlist_manager.db.ensure_user_exists(user_id, username=interaction.user.name)
+                    watchlist = self.watchlist_manager.db.get_user_watchlist(user_id)
+                    
+                    if watchlist:
+                        stocks = "\n".join([f"• ${item['ticker']}" for item in watchlist[:10]])
+                        desc = f"**Your tracked stocks:**\n{stocks}"
+                    else:
+                        desc = "Your watchlist is empty! Use Quick Search to add stocks."
                 else:
-                    desc = "Your watchlist is empty! Use Quick Search to add stocks."
-            else:
-                desc = "Watchlist feature is loading..."
+                    desc = "Watchlist feature is loading..."
+            except Exception as e:
+                print(f"[DASHBOARD ERROR] Watchlist fetch: {e}")
+                desc = f"Watchlist: {str(e)[:100]}"
+            
+            embed = discord.Embed(
+                title="⭐ Your Watchlist",
+                description=desc,
+                color=0x3498db,
+                timestamp=datetime.now()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
         except Exception as e:
-            desc = f"Watchlist: {str(e)[:100]}"
-        
-        embed = discord.Embed(
-            title="⭐ Your Watchlist",
-            description=desc,
-            color=0x3498db,
-            timestamp=datetime.now()
-        )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+            print(f"[DASHBOARD ERROR] Watchlist button: {e}")
+            traceback.print_exc()
+            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
     
     # === ROW 2: Market Data ===
     @discord.ui.button(label="📈 Market Overview", style=discord.ButtonStyle.primary, row=1)
     async def market_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(MarketOverviewModal())
+        try:
+            print(f"[DASHBOARD] Market Overview button clicked by user {interaction.user.id}")
+            await interaction.response.send_modal(MarketOverviewModal())
+        except Exception as e:
+            print(f"[DASHBOARD ERROR] Market Overview button: {e}")
+            traceback.print_exc()
+            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
     
     @discord.ui.button(label="🔥 Top Movers", style=discord.ButtonStyle.primary, row=1)
     async def movers_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        
         try:
+            print(f"[DASHBOARD] Top Movers button clicked by user {interaction.user.id}")
+            await interaction.response.defer(ephemeral=True, thinking=True)
+            
             from database import DatabaseManager
             db = DatabaseManager()
             conn = db.get_connection()
@@ -572,38 +599,74 @@ class OverviewView(discord.ui.View):
     
     @discord.ui.button(label="🎯 Short Squeeze", style=discord.ButtonStyle.danger, row=1)
     async def squeeze_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(ShortSqueezeModal())
+        try:
+            print(f"[DASHBOARD] Short Squeeze button clicked by user {interaction.user.id}")
+            await interaction.response.send_modal(ShortSqueezeModal())
+        except Exception as e:
+            print(f"[DASHBOARD ERROR] Short Squeeze button: {e}")
+            traceback.print_exc()
+            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
     
     # === ROW 3: Activity Feeds ===
     @discord.ui.button(label="👀 Insider Feed", style=discord.ButtonStyle.secondary, row=2)
     async def insider_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(InsiderModal())
+        try:
+            print(f"[DASHBOARD] Insider Feed button clicked by user {interaction.user.id}")
+            await interaction.response.send_modal(InsiderModal())
+        except Exception as e:
+            print(f"[DASHBOARD ERROR] Insider Feed button: {e}")
+            traceback.print_exc()
+            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
     
     @discord.ui.button(label="🏛️ Congress", style=discord.ButtonStyle.secondary, row=2)
     async def congress_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(CongressModal())
+        try:
+            print(f"[DASHBOARD] Congress button clicked by user {interaction.user.id}")
+            await interaction.response.send_modal(CongressModal())
+        except Exception as e:
+            print(f"[DASHBOARD ERROR] Congress button: {e}")
+            traceback.print_exc()
+            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
     
     @discord.ui.button(label="📅 Earnings", style=discord.ButtonStyle.secondary, row=2)
     async def earnings_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(EarningsModal())
+        try:
+            print(f"[DASHBOARD] Earnings button clicked by user {interaction.user.id}")
+            await interaction.response.send_modal(EarningsModal())
+        except Exception as e:
+            print(f"[DASHBOARD ERROR] Earnings button: {e}")
+            traceback.print_exc()
+            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
     
     # === ROW 4: Settings ===
     @discord.ui.button(label="🔄 Refresh", style=discord.ButtonStyle.success, row=3)
     async def refresh_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("🔄 Dashboard refreshed!", ephemeral=True, delete_after=3)
+        try:
+            print(f"[DASHBOARD] Refresh button clicked by user {interaction.user.id}")
+            await interaction.response.send_message("🔄 Dashboard refreshed!", ephemeral=True, delete_after=3)
+        except Exception as e:
+            print(f"[DASHBOARD ERROR] Refresh button: {e}")
+            traceback.print_exc()
+            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
     
     @discord.ui.button(label="⚙️ Settings", style=discord.ButtonStyle.secondary, row=3)
     async def settings_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = discord.Embed(
-            title="⚙️ Settings",
-            description="**Configure Your Preferences**\n\n"
-                       "🔔 **Notifications:** DM alerts on price targets\n"
-                       "⏱️ **Refresh Rate:** How often to check prices\n\n"
-                       "Use the command `!alerts` in chat to set up price alerts.",
-            color=0x3498db,
-            timestamp=datetime.now()
-        )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        try:
+            print(f"[DASHBOARD] Settings button clicked by user {interaction.user.id}")
+            embed = discord.Embed(
+                title="⚙️ Settings",
+                description="**Configure Your Preferences**\n\n"
+                           "🔔 **Notifications:** DM alerts on price targets\n"
+                           "⏱️ **Refresh Rate:** How often to check prices\n\n"
+                           "Use the command `!alerts` in chat to set up price alerts.",
+                color=0x3498db,
+                timestamp=datetime.now()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        except Exception as e:
+            print(f"[DASHBOARD ERROR] Settings button: {e}")
+            traceback.print_exc()
+            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
 
 
 class SettingsView(discord.ui.View):
@@ -675,6 +738,93 @@ class DashboardBot(commands.Bot):
             await self.create_dashboard_channel(guild)
             # Create stonks channel for DD posts
             await self.create_stonks_channel(guild)
+        
+        # Send dashboard to stonk-bot channel
+        await self.send_dashboard()
+    
+    async def send_dashboard(self):
+        """Send the interactive dashboard to the stonk-bot channel"""
+        try:
+            print("[DASHBOARD] Sending dashboard...")
+            
+            for guild in self.guilds:
+                # Find stonk-bot channel
+                dashboard_channel = None
+                for ch in guild.text_channels:
+                    if ch.name == "stonk-bot":
+                        dashboard_channel = ch
+                        break
+                
+                if not dashboard_channel:
+                    print("[DASHBOARD] ERROR: stonk-bot channel not found!")
+                    continue
+                
+                # Create dashboard embed
+                embed = discord.Embed(
+                    title="🚀 Turd News Network v6.0",
+                    description="**Stock Market Dashboard**\n\nQuick access to stock data, reports, and watchlists!",
+                    color=0x5865F2,
+                    timestamp=datetime.now()
+                )
+                
+                # Feature descriptions
+                embed.add_field(
+                    name="🔍 Quick Search",
+                    value="Get instant stock data with charts",
+                    inline=True
+                )
+                embed.add_field(
+                    name="📊 Full Report", 
+                    value="Download detailed HTML analysis",
+                    inline=True
+                )
+                embed.add_field(
+                    name="⭐ Watchlist",
+                    value="Track your favorite stocks",
+                    inline=True
+                )
+                embed.add_field(
+                    name="📈 Market Overview",
+                    value="Major indices and ETFs",
+                    inline=True
+                )
+                embed.add_field(
+                    name="🔥 Top Movers",
+                    value="Best and worst performers",
+                    inline=True
+                )
+                embed.add_field(
+                    name="🎯 Short Squeeze",
+                    value="High short interest stocks",
+                    inline=True
+                )
+                embed.add_field(
+                    name="👀 Insider Feed",
+                    value="Recent insider activity",
+                    inline=True
+                )
+                embed.add_field(
+                    name="🏛️ Congress",
+                    value="Congressional trading",
+                    inline=True
+                )
+                embed.add_field(
+                    name="📅 Earnings",
+                    value="Upcoming earnings dates",
+                    inline=True
+                )
+                
+                embed.set_footer(text="Turd News Network v6.0 • Click buttons below")
+                embed.set_thumbnail(url="https://cdn.discordapp.com/embed/avatars/0.png")
+                
+                # Send with OverviewView
+                view = OverviewView(self.stock_fetcher, self.watchlist_manager)
+                message = await dashboard_channel.send(embed=embed, view=view)
+                print(f"[DASHBOARD] ✅ Dashboard sent to #{dashboard_channel.name} (message ID: {message.id})")
+                
+        except Exception as e:
+            print(f"[DASHBOARD ERROR] Failed to send dashboard: {e}")
+            traceback.print_exc()
     
     async def create_dashboard_channel(self, guild: discord.Guild):
         """Create #stonk-bot channel for the dashboard"""
