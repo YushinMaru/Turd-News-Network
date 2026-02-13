@@ -555,11 +555,11 @@ class StockDataFetcher:
                         return default
                 return value
             
-            # CRITICAL: Validate essential fields
+            # Get market cap (optional - some securities don't have this)
             market_cap = safe_get('marketCap')
             if not market_cap or market_cap <= 0:
-                print(f"   [!]  Invalid market cap for {display_ticker}: {market_cap}")
-                return None
+                # Just use 0 instead of failing - some securities don't have market cap
+                market_cap = 0
 
             # Build comprehensive data (use display_ticker for consistency)
             data = {
