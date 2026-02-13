@@ -767,3 +767,31 @@ class DatabaseManager:
             print(f"[DB] Error ensuring user exists: {e}")
         finally:
             conn.close()
+
+    # =========================================================================
+    # INVALID TICKER CACHING
+    # =========================================================================
+
+    def is_invalid_ticker(self, ticker: str) -> bool:
+        """Check if ticker is known to be invalid"""
+        conn = self.get_connection()
+        c = conn.cursor()
+        c.execute("SELECT 1 FROM invalid_tickers WHERE ticker = ?", (ticker.upper(),))
+        result = c.fetchone()
+        conn.close()
+        return result is not None
+
+    def save_invalid_ticker(self, ticker: str, reason: str = "not found"):
+        """Save an invalid ticker to skip in future scans"""
+        conn = self.get_connection()
+        c = conn.cursor()
+        try:
+            c.execute('''INSERT OR IGNORE INTO invalid_tickers 
+                         (ticker, invalid_date, reason)
+                         VALUES (?, ?, ?)''',
+                      (ticker.upper(), datetime.now().isoformat(), reason))
+            conn.commit()
+        except Exception as e:
+            print(f"[DB] Error saving invalid ticker: {e}")
+        finally:
+            conn.close()

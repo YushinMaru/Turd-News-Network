@@ -525,6 +525,12 @@ class DatabaseInitializer:
                       target_return_5d REAL,
                       UNIQUE(ticker, date))''')
 
+        # Invalid tickers cache - skip these in future scans
+        c.execute('''CREATE TABLE IF NOT EXISTS invalid_tickers
+                     (ticker TEXT PRIMARY KEY,
+                      invalid_date TEXT,
+                      reason TEXT)''')
+
         # Create indexes
         c.execute('CREATE INDEX IF NOT EXISTS idx_ticker ON stock_tracking(ticker)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_post_date ON posted_submissions(posted_date)')

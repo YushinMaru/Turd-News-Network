@@ -47,6 +47,12 @@ class StockDataFetcher:
         # Check caches first
         if ticker in self._invalid_ticker_cache:
             return None
+        
+        # Check persistent invalid ticker cache in database
+        if self.db and hasattr(self.db, 'is_invalid_ticker'):
+            if self.db.is_invalid_ticker(ticker):
+                self._invalid_ticker_cache.add(ticker)
+                return None
         if ticker in self._valid_ticker_cache:
             return self._valid_ticker_cache[ticker]
 
@@ -96,8 +102,10 @@ class StockDataFetcher:
             except Exception:
                 continue
 
-        # No valid exchange found
+        # No valid exchange found - save to database for future scans
         self._invalid_ticker_cache.add(ticker)
+        if self.db and hasattr(self.db, 'save_invalid_ticker'):
+            self.db.save_invalid_ticker(ticker, "not found on any exchange")
         return None
 
     def _generate_chart(self, ticker: str, hist_data, w52_high=None, w52_low=None) -> Optional[str]:
