@@ -641,6 +641,7 @@ class DashboardBot(commands.Bot):
         print("[INIT] Loading components...")
         self.db = DatabaseManager()
         self.scraper = RedditScraper()
+        self._seen_posts_this_scan: set = set()  # Track posts seen during current scan
         self.stock_fetcher = StockDataFetcher(self.db)
         self.analysis = AnalysisEngine()
         self.discord = DiscordEmbedBuilder(WEBHOOK_URL, self.db)
@@ -722,6 +723,9 @@ class DashboardBot(commands.Bot):
         print_separator()
         print(f">> Starting Reddit Scan...")
         
+        # Clear the in-memory seen posts set for this scan
+        self._seen_posts_this_scan.clear()
+        
         all_posts = self.scraper.scrape_all_subreddits()
         print(f"[DEBUG] Scraped {len(all_posts)} posts from subreddits")
         
@@ -743,9 +747,13 @@ class DashboardBot(commands.Bot):
         for post in all_posts:
             post_id = post.get('id', 'unknown')
             
-            if self.db.is_post_already_sent(post_id):
+            # Check both database AND in-memory cache for this scan
+            if post_id in self._seen_posts_this_scan or self.db.is_post_already_sent(post_id):
                 skipped_already_sent += 1
                 continue
+            
+            # Mark as seen in this scan
+            self._seen_posts_this_scan.add(post_id)
             
             combined = post['title'] + ' ' + post['selftext']
             tickers = self.scraper.extract_tickers(combined)
