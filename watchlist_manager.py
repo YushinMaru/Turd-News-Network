@@ -135,9 +135,19 @@ class WatchlistManager:
                             'condition': f'{volume_ratio:.1f}x volume'
                         })
             
-            # Send notifications
+            # Send notifications and clear the alert after triggering
             for alert in alerts_triggered:
                 await self._send_alert(user_id, ticker, alert, current_price)
+                
+                # Clear the alert after triggering so it doesn't keep alerting
+                if alert['type'] == 'price_above':
+                    self.db.update_watchlist_alerts(user_id, ticker, alert_price_above=None)
+                elif alert['type'] == 'price_below':
+                    self.db.update_watchlist_alerts(user_id, ticker, alert_price_below=None)
+                elif alert['type'] == 'percent_change':
+                    self.db.update_watchlist_alerts(user_id, ticker, alert_percent_change=None)
+                elif alert['type'] == 'volume_spike':
+                    self.db.update_watchlist_alerts(user_id, ticker, alert_volume_spike=False)
     
     def _should_trigger_alert(self, user_id: str, ticker: str, alert_type: str) -> bool:
         """Check if alert should be triggered (rate limiting)"""
