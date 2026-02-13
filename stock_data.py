@@ -201,7 +201,7 @@ class StockDataFetcher:
                 volume=True,
                 title=f'\n${ticker} - 3 Month Chart',
                 savefig=dict(fname=filepath, dpi=120, bbox_inches='tight'),
-                figsize=(10, 6),
+                figsize=(10, 8),
             )
             if addplots:
                 kwargs['addplot'] = addplots
