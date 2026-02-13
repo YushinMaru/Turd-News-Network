@@ -490,20 +490,35 @@ class TickerReportBuilder:
         feps = sd.get('forward_eps')
         target = sd.get('price_target')
         
-        eps_str = f"${eps:.2f}" if eps is not None else 'N/A'
-        if feps is not None:
-            eps_str += f" (Fwd: ${feps:.2f})"
+        try:
+            eps_str = f"${float(eps):.2f}" if eps is not None else 'N/A'
+        except (TypeError, ValueError):
+            eps_str = 'N/A'
         
-        target_str = f"${target:.2f}" if target else 'N/A'
-        if target and price:
-            upside = ((target - price) / price) * 100
-            target_str += f" ({upside:+.1f}%)"
+        try:
+            if feps is not None:
+                eps_str += f" (Fwd: ${float(feps):.2f})"
+        except (TypeError, ValueError):
+            pass
+        
+        try:
+            target_str = f"${float(target):.2f}" if target else 'N/A'
+            if target and price:
+                upside = ((float(target) - float(price)) / float(price)) * 100
+                target_str += f" ({upside:+.1f}%)"
+        except (TypeError, ValueError):
+            target_str = 'N/A'
         
         beta = sd.get('beta')
         si = sd.get('short_interest')
         
+        try:
+            beta_str = f"{float(beta):.2f}" if beta is not None else 'N/A'
+        except (TypeError, ValueError):
+            beta_str = 'N/A'
+        
         eps_data = f"EPS: {eps_str}\nTarget: {target_str}\n"
-        eps_data += f"Beta: {beta:.2f if beta is not None else 'N/A'} | Short: {self._fmt_pct(si) if si else 'N/A'}"
+        eps_data += f"Beta: {beta_str} | Short: {self._fmt_pct(si) if si else 'N/A'}"
         
         fields.append({"name": "📈 EPS & TARGETS", "value": eps_data, "inline": True})
 
@@ -524,9 +539,19 @@ class TickerReportBuilder:
         de = sd.get('debt_to_equity')
         cr = sd.get('current_ratio')
         
+        try:
+            de_str = f"{float(de):.2f}" if de is not None else 'N/A'
+        except (TypeError, ValueError):
+            de_str = 'N/A'
+        
+        try:
+            cr_str = f"{float(cr):.2f}" if cr is not None else 'N/A'
+        except (TypeError, ValueError):
+            cr_str = 'N/A'
+        
         health_data = f"ROE: {self._fmt_pct(roe) if roe else 'N/A'}\n"
         health_data += f"ROA: {self._fmt_pct(roa) if roa else 'N/A'}\n"
-        health_data += f"D/E: {de:.2f if de else 'N/A'} | Current: {cr:.2f if cr else 'N/A'}"
+        health_data += f"D/E: {de_str} | Current: {cr_str}"
         
         fields.append({"name": "🏥 FINANCIAL HEALTH", "value": health_data, "inline": True})
 
