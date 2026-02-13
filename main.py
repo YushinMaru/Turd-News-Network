@@ -677,10 +677,12 @@ class DashboardBot(commands.Bot):
     async def on_ready(self):
         print(f"[BOT] Ready: {self.user}")
         for guild in self.guilds:
-            await self.create_dashboard(guild)
+            # Create stonk-bot channel for dashboard
+            await self.create_dashboard_channel(guild)
     
-    async def create_dashboard(self, guild: discord.Guild):
-        channel_name = "stonks"
+    async def create_dashboard_channel(self, guild: discord.Guild):
+        """Create #stonk-bot channel for the dashboard"""
+        channel_name = "stonk-bot"
         
         channel = None
         for ch in guild.channels:
