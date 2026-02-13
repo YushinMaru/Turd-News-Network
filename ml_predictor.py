@@ -169,6 +169,28 @@ class MLPredictor:
         return direction, round(confidence, 2)
 
 
+    @staticmethod
+    def format_for_embed(prediction: Dict) -> Dict:
+        """Format ML prediction for embed display"""
+        direction = prediction.get('direction', 'FLAT')
+        confidence = prediction.get('confidence', 0) * 100
+        
+        if direction == 'UP':
+            emoji = '🟢'
+        elif direction == 'DOWN':
+            emoji = '🔴'
+        else:
+            emoji = '🟡'
+        
+        return {
+            'emoji': emoji,
+            'direction': direction,
+            'confidence': int(confidence),
+            'days': prediction.get('days', 5),
+            'probabilities': prediction.get('probabilities', {})
+        }
+
+
 # Alias for compatibility with ticker_report.py
 PricePredictor = MLPredictor
 

@@ -162,9 +162,12 @@ class TickerReportBuilder:
                 stock_data['fibonacci'] = fib
 
         if ENABLE_ML_PREDICTION:
-            ml_result = self.ml_predictor.predict(stock_data)
-            if ml_result:
-                stock_data['ml_prediction'] = PricePredictor.format_for_embed(ml_result)
+            try:
+                ml_result = self.ml_predictor.predict(ticker)
+                if ml_result:
+                    stock_data['ml_prediction'] = PricePredictor.format_for_embed(ml_result)
+            except Exception as e:
+                print(f"[ML] Prediction error for {ticker}: {e}")
 
         if ENABLE_OPTIONS_FLOW and stock_data.get('options_data'):
             stock_data['options_flow'] = self.analysis.analyze_options_flow(
@@ -201,9 +204,9 @@ class TickerReportBuilder:
 
         # ===== SENTIMENT & SIGNALS =====
         signal_summary = sd.get('signal_summary')
-        if signal_summary:
+        if signal_summary and isinstance(signal_summary, dict):
             signal = signal_summary.get('signal', 'HOLD')
-            if hasattr(signal, 'upper'):
+            if signal and isinstance(signal, str) and hasattr(signal, 'upper'):
                 signal = signal.upper()
             else:
                 signal = 'HOLD'
