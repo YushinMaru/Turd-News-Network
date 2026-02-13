@@ -183,13 +183,14 @@ class TickerReportBuilder:
         valid_ticker = self.stock_fetcher._valid_ticker_cache.get(symbol, symbol)
         extra = self._fetch_extra_data(symbol, valid_ticker)
 
-        # 4. Build 4 COMPREHENSIVE embeds - wrapped in try/except to NEVER fail
+        # 5. Build 5 COMPREHENSIVE embeds - wrapped in try/except to NEVER fail
         try:
             embeds = [
                 self._embed_company_info(stock_data, extra),      # Embed 1: Company Overview FIRST
                 self._embed_sentiment_ml(stock_data, extra),      # Embed 2: Sentiment + ML + Prediction
                 self._embed_insider_congress(stock_data, extra),  # Embed 3: Insider + Congress
                 self._embed_charts(stock_data),                   # Embed 4: Charts & Visuals
+                self._embed_actions(stock_data),                 # Embed 5: Actions & Commands
             ]
         except Exception as e:
             print(f"[TickerReport] Error building embeds: {e}")
@@ -822,5 +823,93 @@ class TickerReportBuilder:
             "color": COLOR_REPORT_OVERVIEW,
             "fields": fields,
             "footer": {"text": "Turd News Network v6.0 | Charts"},
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    # -- EMBED 5: ACTIONS & COMMANDS --------------------------------------------
+
+    def _embed_actions(self, sd: Dict) -> Dict:
+        """Embed 5: Actions, Commands, and Quick Links"""
+        ticker = sd['ticker']
+        price = sd.get('price', 0)
+        fields = []
+        
+        # ===== SLASH COMMANDS =====
+        cmd_info = "**Available Slash Commands:**\n"
+        cmd_info += "━━━━━━━━━━━━━━━━━━━━━━\n"
+        cmd_info += f"🔍 `/search {ticker}` - Full detailed report\n"
+        cmd_info += f"⭐ `/watchlist add {ticker}` - Add to watchlist\n"
+        cmd_info += f"⭐ `/watchlist remove {ticker}` - Remove from watchlist\n"
+        cmd_info += f"🔔 `/alert {ticker} above $XXX` - Set price alert\n"
+        cmd_info += f"📊 `/report {ticker}` - Generate HTML report\n"
+        cmd_info += f"📈 `/market` - Market overview\n"
+        cmd_info += f"👀 `/insider` - Insider activity feed\n"
+        cmd_info += f"🏛️ `/congress` - Congress trading\n"
+        
+        fields.append({"name": "⌨️ SLASH COMMANDS", "value": cmd_info, "inline": False})
+        
+        # ===== QUICK ACTIONS =====
+        action_info = "**Quick Actions:**\n"
+        action_info += "━━━━━━━━━━━━━━━━━━━━━━\n"
+        
+        # Research links
+        action_info += f"📊 [Full Report](https://stockanalysis.com/stocks/{ticker}) - Comprehensive analysis\n"
+        action_info += f"📈 [TradingView](https://www.tradingview.com/symbols/{ticker}) - Advanced charts\n"
+        action_info += f"📰 [News](https://finance.yahoo.com/quote/{ticker}/news) - Latest news\n"
+        action_info += f"💼 [SEC Filings](https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={ticker}) - Regulatory filings\n"
+        
+        fields.append({"name": "🔗 QUICK LINKS", "value": action_info, "inline": False})
+        
+        # ===== WATCHLIST COMMANDS =====
+        watch_info = "**Watchlist Management:**\n"
+        watch_info += "━━━━━━━━━━━━━━━━━━━━━━\n"
+        watch_info += f"To track {ticker} in your watchlist:\n"
+        watch_info += f"• Type: `/watchlist add {ticker}`\n"
+        watch_info += f"• View: Click ⭐ Watchlist button on dashboard\n"
+        watch_info += f"• Remove: `/watchlist remove {ticker}`\n"
+        
+        fields.append({"name": "⭐ WATCHLIST", "value": watch_info, "inline": False})
+        
+        # ===== ALERT COMMANDS =====
+        alert_info = "**Price Alerts:**\n"
+        alert_info += "━━━━━━━━━━━━━━━━━━━━━━\n"
+        alert_info += f"Current Price: **${price:.2f}**\n\n"
+        alert_info += "Set alerts with these commands:\n"
+        
+        if price > 0:
+            up_5 = price * 1.05
+            down_5 = price * 0.95
+            up_10 = price * 1.10
+            down_10 = price * 0.90
+            
+            alert_info += f"• `/alert {ticker} above ${up_5:.2f}` (+5%)\n"
+            alert_info += f"• `/alert {ticker} below ${down_5:.2f}` (-5%)\n"
+            alert_info += f"• `/alert {ticker} above ${up_10:.2f}` (+10%)\n"
+            alert_info += f"• `/alert {ticker} below ${down_10:.2f}` (-10%)\n"
+        
+        alert_info += "\n• `/alerts` - View your active alerts"
+        
+        fields.append({"name": "🔔 PRICE ALERTS", "value": alert_info, "inline": False})
+        
+        # ===== DASHBOARD BUTTONS =====
+        dash_info = "**Dashboard Actions:**\n"
+        dash_info += "━━━━━━━━━━━━━━━━━━━━━━\n"
+        dash_info += "Use the dashboard for more options:\n"
+        dash_info += "• 🔍 Quick Search - Detailed stock reports\n"
+        dash_info += "• 📊 Full Report - HTML company dashboard\n"
+        dash_info += "• ⭐ Watchlist - Track your stocks\n"
+        dash_info += "• 🔥 Top Movers - Best/worst performers\n"
+        dash_info += "• 🎯 Short Squeeze - High short interest\n"
+        dash_info += "• 👀 Insider Feed - Recent insider buys\n"
+        dash_info += "• 🏛️ Congress - Congressional trades\n"
+        dash_info += "• 📅 Earnings - Upcoming earnings"
+        
+        fields.append({"name": "🎛️ DASHBOARD", "value": dash_info, "inline": False})
+        
+        return {
+            "title": f"⚡ {ticker} - Actions & Commands",
+            "color": COLOR_REPORT_OVERVIEW,
+            "fields": fields,
+            "footer": {"text": "Turd News Network v6.0 | Actions"},
             "timestamp": datetime.utcnow().isoformat(),
         }
