@@ -38,7 +38,7 @@ class TickerReportBuilder:
         self.analysis = AnalysisEngine()
         self.backtester = EnhancedBacktester()
         self.congress_tracker = CongressTracker(self.db)
-        self.ml_predictor = PricePredictor(self.db)
+        self.ml_predictor = PricePredictor()
 
     # -- helpers ---------------------------------------------------------------
 
