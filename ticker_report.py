@@ -482,9 +482,30 @@ class TickerReportBuilder:
         peg = sd.get('peg_ratio')
         pb = sd.get('price_to_book')
         
+        # Safe formatting for each value
+        try:
+            pe_str = f"{float(pe):.2f}" if pe is not None else 'N/A'
+        except (TypeError, ValueError):
+            pe_str = 'N/A'
+        
+        try:
+            fpe_str = f"{float(fpe):.2f}" if fpe is not None else 'N/A'
+        except (TypeError, ValueError):
+            fpe_str = 'N/A'
+        
+        try:
+            peg_str = f"{float(peg):.2f}" if peg is not None else 'N/A'
+        except (TypeError, ValueError):
+            peg_str = 'N/A'
+        
+        try:
+            pb_str = f"{float(pb):.2f}" if pb is not None else 'N/A'
+        except (TypeError, ValueError):
+            pb_str = 'N/A'
+        
         val_data = f"Market Cap: **{mc_str}**\n"
-        val_data += f"P/E: {pe:.2f if pe is not None else 'N/A'} | Fwd P/E: {fpe:.2f if fpe is not None else 'N/A'}\n"
-        val_data += f"PEG: {peg:.2f if peg is not None else 'N/A'} | P/B: {pb:.2f if pb is not None else 'N/A'}"
+        val_data += f"P/E: {pe_str} | Fwd P/E: {fpe_str}\n"
+        val_data += f"PEG: {peg_str} | P/B: {pb_str}"
         
         fields.append({"name": "📊 VALUATION", "value": val_data, "inline": True})
 
