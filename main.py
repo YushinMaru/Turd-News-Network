@@ -857,7 +857,7 @@ class DashboardBot(commands.Bot):
                             # Embed 9: Insider/Congress (index 8)
                             # Embed 10: Analyst/News (index 9)
                             
-                            embed_indices = [0, 1, 2]  # Sentiment/ML, Insider/Congress, Company Info
+                            embed_indices = [0, 1, 2, 3]  # Company Info, Sentiment/ML, Insider/Congress, Charts
                             
                             for idx in embed_indices:
                                 if idx < len(embeds_list):

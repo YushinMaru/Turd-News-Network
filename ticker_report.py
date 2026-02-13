@@ -183,12 +183,13 @@ class TickerReportBuilder:
         valid_ticker = self.stock_fetcher._valid_ticker_cache.get(symbol, symbol)
         extra = self._fetch_extra_data(symbol, valid_ticker)
 
-        # 4. Build 3 COMPREHENSIVE embeds - wrapped in try/except to NEVER fail
+        # 4. Build 4 COMPREHENSIVE embeds - wrapped in try/except to NEVER fail
         try:
             embeds = [
                 self._embed_company_info(stock_data, extra),      # Embed 1: Company Overview FIRST
                 self._embed_sentiment_ml(stock_data, extra),      # Embed 2: Sentiment + ML + Prediction
                 self._embed_insider_congress(stock_data, extra),  # Embed 3: Insider + Congress
+                self._embed_charts(stock_data),                   # Embed 4: Charts & Visuals
             ]
         except Exception as e:
             print(f"[TickerReport] Error building embeds: {e}")
@@ -724,5 +725,102 @@ class TickerReportBuilder:
             "color": COLOR_REPORT_OVERVIEW,
             "fields": fields,
             "footer": {"text": "Turd News Network v6.0 | Company Intelligence"},
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    # -- EMBED 4: CHARTS & IMAGES ---------------------------------------------
+
+    def _embed_charts(self, sd: Dict) -> Dict:
+        """Embed 4: Charts and Visualizations"""
+        ticker = sd['ticker']
+        name = sd.get('name', ticker)
+        price = sd.get('price', 0)
+        fields = []
+        
+        # ===== CHART INFO =====
+        chart_path = sd.get('chart_path')
+        
+        chart_info = "📈 **Charts Generated:**\n"
+        
+        if chart_path and os.path.exists(chart_path):
+            chart_info += "• ✅ Candlestick + Moving Averages\n"
+            chart_info += "• ✅ Bollinger Bands\n"
+            chart_info += "• ✅ 52W High/Low Lines\n"
+        else:
+            chart_info += "• ⏳ Price Chart (generating...)\n"
+        
+        # Technical indicators
+        indicators = sd.get('technical_indicators', {})
+        if indicators:
+            chart_info += "\n📊 **Technical Indicators:**\n"
+            
+            if indicators.get('rsi') is not None:
+                rsi = indicators['rsi']
+                rsi_status = "Oversold 🟢" if rsi < 30 else "Overbought 🔴" if rsi > 70 else "Neutral 🟡"
+                chart_info += f"• RSI (14): {rsi:.1f} - {rsi_status}\n"
+            
+            if indicators.get('macd') is not None:
+                macd = indicators['macd']
+                macd_status = "Bullish 🟢" if macd > 0 else "Bearish 🔴"
+                chart_info += f"• MACD: {macd:.4f} - {macd_status}\n"
+        
+        fields.append({"name": "📈 PRICE CHART", "value": chart_info, "inline": False})
+        
+        # ===== FIBONACCI LEVELS =====
+        fib = sd.get('fibonacci')
+        if fib:
+            levels = fib.get('levels', {})
+            if levels:
+                fib_info = "🎯 **Fibonacci Retracement:**\n"
+                for level, price_val in levels.items():
+                    pct_from = ((price_val - price) / price) * 100
+                    emoji = "🟢" if pct_from > 0 else "🔴"
+                    fib_info += f"• {level}: ${price_val:.2f} {emoji} {pct_from:+.1f}%\n"
+                
+                nearest = fib.get('nearest_level', '')
+                if nearest:
+                    fib_info += f"\n📍 Nearest: **{nearest}** (${fib.get('nearest_level_price', 0):.2f})"
+                
+                fields.append({"name": "🎯 FIBONACCI", "value": fib_info, "inline": False})
+        
+        # ===== PERFORMANCE VS SPY =====
+        backtest = sd.get('backtest')
+        if backtest:
+            perf_info = f"📊 **3-Year Performance:**\n"
+            perf_info += f"• Stock: **{backtest.get('total_return', 0):+.1f}%**\n"
+            perf_info += f"• vs SPY: {backtest.get('excess_return', 0):+.1f}%\n"
+            perf_info += f"• Sharpe: {backtest.get('sharpe_ratio', 'N/A')}\n"
+            perf_info += f"• Max DD: {backtest.get('max_drawdown', 'N/A')}%"
+            
+            fields.append({"name": "📈 PERFORMANCE VS SPY", "value": perf_info, "inline": False})
+        
+        # ===== OPTIONS FLOW =====
+        options_data = sd.get('options_data')
+        if options_data:
+            pc = options_data.get('pc_ratio')
+            if pc is not None:
+                opt_info = "📊 **Options Flow:**\n"
+                if pc < 0.5:
+                    opt_info += "• 🟢 Heavy Calls (bullish)\n"
+                elif pc > 1.5:
+                    opt_info += "• 🔴 Heavy Puts (bearish)\n"
+                else:
+                    opt_info += "• 🟡 Balanced\n"
+                
+                opt_info += f"• P/C Ratio: **{pc:.2f}**"
+                fields.append({"name": "📊 OPTIONS FLOW", "value": opt_info, "inline": False})
+        
+        # ===== CHART LINKS =====
+        links_info = "🔗 **Chart Links:**\n"
+        links_info += f"• [TradingView](https://www.tradingview.com/symbols/{ticker})\n"
+        links_info += f"• [StockAnalysis](https://stockanalysis.com/stocks/{ticker}/charts)"
+        
+        fields.append({"name": "📈 CHART LINKS", "value": links_info, "inline": False})
+        
+        return {
+            "title": f"📈 {ticker} - Charts & Visuals",
+            "color": COLOR_REPORT_OVERVIEW,
+            "fields": fields,
+            "footer": {"text": "Turd News Network v6.0 | Charts"},
             "timestamp": datetime.utcnow().isoformat(),
         }
