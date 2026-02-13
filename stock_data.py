@@ -118,12 +118,34 @@ class StockDataFetcher:
             matplotlib.use('Agg')
             import matplotlib.pyplot as plt
             import mplfinance as mpf
-        except ImportError:
+        except ImportError as e:
+            print(f"   [!] mplfinance not installed: {e}")
             return None
 
         try:
             # Work on a copy to avoid modifying original data
             hist_copy = hist_data.copy()
+            
+            # Ensure proper column names for mplfinance
+            column_mapping = {
+                'Open': 'Open',
+                'High': 'High', 
+                'Low': 'Low',
+                'Close': 'Close',
+                'Volume': 'Volume'
+            }
+            
+            # Rename columns if needed (yfinance uses different case)
+            for old_col, new_col in column_mapping.items():
+                if old_col in hist_copy.columns and new_col not in hist_copy.columns:
+                    hist_copy = hist_copy.rename(columns={old_col: new_col})
+            
+            # Verify required columns exist
+            required_cols = ['Open', 'High', 'Low', 'Close']
+            for col in required_cols:
+                if col not in hist_copy.columns:
+                    print(f"   [!] Missing required column: {col}")
+                    return None
 
             # Calculate moving averages on full history
             hist_copy['SMA20'] = hist_copy['Close'].rolling(window=20).mean()
