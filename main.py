@@ -332,12 +332,12 @@ class CongressModal(discord.ui.Modal, title="🏛️ Congress Trading"):
             conn = db.get_connection()
             c = conn.cursor()
             
-            # Check if congress_tracking table exists and has data
-            c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='congress_trading'")
+            # Check if congress_trades table exists and has data
+            c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='congress_trades'")
             if c.fetchone():
                 c.execute('''
-                    SELECT ticker, member_name, transaction_type, amount
-                    FROM congress_trading
+                    SELECT ticker, politician_name, party, transaction_type, amount_range
+                    FROM congress_trades
                     ORDER BY transaction_date DESC
                     LIMIT 15
                 ''')
@@ -352,11 +352,11 @@ class CongressModal(discord.ui.Modal, title="🏛️ Congress Trading"):
                 )
                 
                 if results:
-                    for ticker, member, txn_type, amount in results:
+                    for ticker, member, party, txn_type, amount in results:
                         emoji = "🟢" if "PURCHASE" in str(txn_type).upper() else "🔴"
                         embed.add_field(
                             name=f"{emoji} ${ticker}",
-                            value=f"{member}\n{txn_type} - ${amount}",
+                            value=f"{member} ({party})\n{txn_type} - {amount}",
                             inline=True
                         )
                 else:
