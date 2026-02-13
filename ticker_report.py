@@ -203,6 +203,10 @@ class TickerReportBuilder:
         signal_summary = sd.get('signal_summary')
         if signal_summary:
             signal = signal_summary.get('signal', 'HOLD')
+            if hasattr(signal, 'upper'):
+                signal = signal.upper()
+            else:
+                signal = 'HOLD'
             confidence = signal_summary.get('confidence', 0)
             bullish_count = signal_summary.get('bullish_count', 0)
             bearish_count = signal_summary.get('bearish_count', 0)
@@ -476,8 +480,8 @@ class TickerReportBuilder:
         pb = sd.get('price_to_book')
         
         val_data = f"Market Cap: **{mc_str}**\n"
-        val_data += f"P/E: {pe:.2f if pe else 'N/A'} | Fwd P/E: {fpe:.2f if fpe else 'N/A'}\n"
-        val_data += f"PEG: {peg:.2f if peg else 'N/A'} | P/B: {pb:.2f if pb else 'N/A'}"
+        val_data += f"P/E: {pe:.2f if pe is not None else 'N/A'} | Fwd P/E: {fpe:.2f if fpe is not None else 'N/A'}\n"
+        val_data += f"PEG: {peg:.2f if peg is not None else 'N/A'} | P/B: {pb:.2f if pb is not None else 'N/A'}"
         
         fields.append({"name": "📊 VALUATION", "value": val_data, "inline": True})
 
@@ -486,8 +490,8 @@ class TickerReportBuilder:
         feps = sd.get('forward_eps')
         target = sd.get('price_target')
         
-        eps_str = f"${eps:.2f}" if eps else 'N/A'
-        if feps:
+        eps_str = f"${eps:.2f}" if eps is not None else 'N/A'
+        if feps is not None:
             eps_str += f" (Fwd: ${feps:.2f})"
         
         target_str = f"${target:.2f}" if target else 'N/A'
@@ -499,7 +503,7 @@ class TickerReportBuilder:
         si = sd.get('short_interest')
         
         eps_data = f"EPS: {eps_str}\nTarget: {target_str}\n"
-        eps_data += f"Beta: {beta:.2f if beta else 'N/A'} | Short: {self._fmt_pct(si) if si else 'N/A'}"
+        eps_data += f"Beta: {beta:.2f if beta is not None else 'N/A'} | Short: {self._fmt_pct(si) if si else 'N/A'}"
         
         fields.append({"name": "📈 EPS & TARGETS", "value": eps_data, "inline": True})
 
