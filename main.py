@@ -882,7 +882,16 @@ class DashboardBot(commands.Bot):
                                     await stonks_channel.send(embed=embed)
                                     await asyncio.sleep(0.5)  # Small delay between embeds
                                     
-                            print(f"[DEBUG] Sent 3 detailed embeds for {ticker}")
+                            # Attach chart image if available
+                            if chart_path and os.path.exists(chart_path):
+                                try:
+                                    chart_file = discord.File(chart_path, filename=f"{ticker}_chart.png")
+                                    # Send chart as separate message
+                                    await stonks_channel.send(file=chart_file)
+                                except Exception as e:
+                                    print(f"[ERROR] Failed to send chart: {e}")
+                            
+                            print(f"[DEBUG] Sent 4 detailed embeds for {ticker}")
                         else:
                             # Fallback to simple embed if builder fails
                             await self._send_simple_embed(stonks_channel, sd, post)
