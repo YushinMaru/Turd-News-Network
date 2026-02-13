@@ -680,7 +680,7 @@ class DashboardBot(commands.Bot):
             await self.create_dashboard(guild)
     
     async def create_dashboard(self, guild: discord.Guild):
-        channel_name = "stonk-bot"
+        channel_name = "stonks"
         
         channel = None
         for ch in guild.channels:
@@ -695,7 +695,9 @@ class DashboardBot(commands.Bot):
                     guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
                 }
                 channel = await guild.create_text_channel(channel_name, overwrites=overwrites)
-            except:
+                print(f"[DASHBOARD] Created #{channel_name} channel")
+            except Exception as e:
+                print(f"[DASHBOARD] Error creating channel: {e}")
                 return
         
         try:
@@ -781,13 +783,15 @@ class DashboardBot(commands.Bot):
     async def send_to_stonks_channel(self, post, stock_list):
         try:
             for guild in self.guilds:
+                # Find the stonks channel
                 stonks_channel = None
                 for ch in guild.text_channels:
-                    if ch.name in ["stonks", "stonks-"]:
+                    if ch.name == "stonks":
                         stonks_channel = ch
                         break
                 
                 if not stonks_channel:
+                    print(f"[DD POST] No #stonks channel found in {guild.name}")
                     continue
                 
                 quality = post.get('quality_score', 0)
