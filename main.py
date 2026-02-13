@@ -750,14 +750,20 @@ class DashboardBot(commands.Bot):
             for guild in self.guilds:
                 # Find stonk-bot channel
                 dashboard_channel = None
+                stonks_channel = None
                 for ch in guild.text_channels:
                     if ch.name == "stonk-bot":
                         dashboard_channel = ch
-                        break
+                    if ch.name == "stonks":
+                        stonks_channel = ch
                 
                 if not dashboard_channel:
                     print("[DASHBOARD] ERROR: stonk-bot channel not found!")
                     continue
+                
+                # Create and pin help message in stonks channel (where DD posts go)
+                if stonks_channel:
+                    await self.send_pinned_help_message(stonks_channel)
                 
                 # Create dashboard embed
                 embed = discord.Embed(
@@ -824,6 +830,124 @@ class DashboardBot(commands.Bot):
                 
         except Exception as e:
             print(f"[DASHBOARD ERROR] Failed to send dashboard: {e}")
+            traceback.print_exc()
+    
+    async def send_pinned_help_message(self, channel):
+        """Send a pinned help message with stock term definitions"""
+        try:
+            # Check if we already have a pinned message in this channel
+            async for message in channel.history(limit=50):
+                if message.author == self.user and message.content.startswith("📚 **TURD NEWS NETWORK"):
+                    print("[PIN] Pinned help message already exists, skipping...")
+                    return
+            
+            # Create the help embed with simple explanations
+            embed = discord.Embed(
+                title="📚 Stock Terms Explained - Simple Guide",
+                description="Here's what all the stock terms mean, explained simply!",
+                color=0x3498DB,
+                timestamp=datetime.now()
+            )
+            
+            # Price & Valuation
+            embed.add_field(
+                name="💰 Price & Valuation",
+                value="**P/E (Price to Earnings)** - How much you pay for $1 of earnings. Lower = cheaper.\n"
+                       "**Forward P/E** - Expected P/E next year\n"
+                       "**PEG (P/E to Growth)** - P/E divided by growth rate. Under 1 = potentially undervalued\n"
+                       "**P/B (Price to Book)** - Price vs company assets. Under 1 = potentially cheap\n"
+                       "**Market Cap** - Total value of all shares. Big = Blue chip, Small = risky",
+                inline=False
+            )
+            
+            # Earnings
+            embed.add_field(
+                name="📈 Earnings Terms",
+                value="**EPS (Earnings Per Share)** - Company's profit divided by shares. Higher = better\n"
+                       "**Revenue** - Total money company made. Growing = good!\n"
+                       "**Profit Margin** - % of revenue left as profit. Higher = more efficient\n"
+                       "**Operating Margin** - Profit from main business operations\n"
+                       "**Gross Margin** - Profit after paying for products/services",
+                inline=False
+            )
+            
+            # Financial Health
+            embed.add_field(
+                name="🏥 Financial Health",
+                value="**ROE (Return on Equity)** - How well company uses shareholder money. Higher = better\n"
+                       "**ROA (Return on Assets)** - How well company uses assets. Higher = better\n"
+                       "**Debt to Equity (D/E)** - How much debt vs equity. Lower = less risky\n"
+                       "**Current Ratio** - Ability to pay short-term debts. Over 1 = safe\n"
+                       "**Beta** - How volatile vs market. 1 = same as market, >1 = riskier",
+                inline=False
+            )
+            
+            # Technical Indicators
+            embed.add_field(
+                name="📊 Technical Indicators",
+                value="**RSI (Relative Strength Index)** - Is it overbought (>70) or oversold (<30)?\n"
+                       "**MACD** - Trend indicator. Green line crossing up = bullish\n"
+                       "**SMA (Simple Moving Average)** - Average price over time. 20/50/200 days\n"
+                       "**ADX** - Trend strength. Above 25 = strong trend\n"
+                       "**Bollinger Bands** - Price volatility. Touching bands = possible reversal",
+                inline=False
+            )
+            
+            # Advanced Terms
+            embed.add_field(
+                name="🎯 Advanced Terms",
+                value="**Fibonacci Retracement** - Support/resistance levels based on math ratios\n"
+                       "**Put/Call Ratio** - More calls = bullish, more puts = bearish\n"
+                       "**Short Interest** - % of shares shorted. High = potential squeeze\n"
+                       "**Dividend Yield** - Annual dividend as % of price. Income investors love this\n"
+                       "**Analyst Rating** - Wall Street recommendation. Buy = bullish",
+                inline=False
+            )
+            
+            # Performance
+            embed.add_field(
+                name="📉 Performance Metrics",
+                value="**52W High/Low** - Highest and lowest price in past year\n"
+                       "**Volume** - Shares traded today. High volume = more interest\n"
+                       "**Sharpe Ratio** - Risk-adjusted return. Over 1 = good, over 2 = great\n"
+                       "**Max Drawdown** - Biggest drop from peak. Lower = less risky\n"
+                       "**Win Rate** - % of profitable trades in backtest",
+                inline=False
+            )
+            
+            # Ownership
+            embed.add_field(
+                name="👀 Ownership & Trading",
+                value="**Insider Transactions** - Company insiders buying/selling. They know the company!\n"
+                       "**Institutional Ownership** - % owned by big funds. High = confidence\n"
+                       "**Congress Trading** - Politicians trading the stock. Follow the money!\n"
+                       "**Short Interest** - % of shares being shorted. High = potential short squeeze",
+                inline=False
+            )
+            
+            # How to Use
+            embed.add_field(
+                name="🎮 How to Use",
+                value="1. **Click Quick Search** - Enter any ticker for full analysis\n"
+                       "2. **Use /search command** - Same thing in chat\n"
+                       "3. **Add to Watchlist** - Track your favorite stocks\n"
+                       "4. **Set Price Alerts** - Get notified of price moves\n"
+                       "5. **Check Dashboard** - Market overview, top movers, and more!",
+                inline=False
+            )
+            
+            embed.set_footer(text="Turd News Network v6.0 • 📌 Pinned for easy reference")
+            embed.set_thumbnail(url="https://cdn.discordapp.com/embed/avatars/0.png")
+            
+            # Send the message
+            help_msg = await channel.send(embed=embed)
+            
+            # Pin the message
+            await help_msg.pin()
+            print(f"[PIN] ✅ Pinned help message (ID: {help_msg.id})")
+            
+        except Exception as e:
+            print(f"[PIN ERROR] Failed to create pinned message: {e}")
             traceback.print_exc()
     
     async def create_dashboard_channel(self, guild: discord.Guild):
