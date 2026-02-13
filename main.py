@@ -488,15 +488,30 @@ class OverviewView(discord.ui.View):
     @discord.ui.button(label="⭐ Watchlist", style=discord.ButtonStyle.success, row=0)
     async def watchlist_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         user_id = str(interaction.user.id)
-        self.watchlist_manager.db.ensure_user_exists(user_id, username=interaction.user.name)
-        view = WatchlistView(self.watchlist_manager, user_id)
+        
+        # Try to use watchlist manager, fall back to simple message
+        try:
+            if hasattr(self, 'watchlist_manager') and self.watchlist_manager:
+                self.watchlist_manager.db.ensure_user_exists(user_id, username=interaction.user.name)
+                watchlist = self.watchlist_manager.db.get_user_watchlist(user_id)
+                
+                if watchlist:
+                    stocks = "\n".join([f"• ${item['ticker']}" for item in watchlist[:10]])
+                    desc = f"**Your tracked stocks:**\n{stocks}"
+                else:
+                    desc = "Your watchlist is empty! Use Quick Search to add stocks."
+            else:
+                desc = "Watchlist feature is loading..."
+        except Exception as e:
+            desc = f"Watchlist: {str(e)[:100]}"
+        
         embed = discord.Embed(
             title="⭐ Your Watchlist",
-            description="Track stocks with alerts!",
+            description=desc,
             color=0x3498db,
             timestamp=datetime.now()
         )
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     
     # === ROW 2: Market Data ===
     @discord.ui.button(label="📈 Market Overview", style=discord.ButtonStyle.primary, row=1)
@@ -579,12 +594,16 @@ class OverviewView(discord.ui.View):
     
     @discord.ui.button(label="⚙️ Settings", style=discord.ButtonStyle.secondary, row=3)
     async def settings_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = SettingsView(self.watchlist_manager, str(interaction.user.id))
-        await interaction.response.send_message(
-            "⚙️ **Settings**\n\nChoose what to configure:",
-            view=view,
-            ephemeral=True
+        embed = discord.Embed(
+            title="⚙️ Settings",
+            description="**Configure Your Preferences**\n\n"
+                       "🔔 **Notifications:** DM alerts on price targets\n"
+                       "⏱️ **Refresh Rate:** How often to check prices\n\n"
+                       "Use the command `!alerts` in chat to set up price alerts.",
+            color=0x3498db,
+            timestamp=datetime.now()
         )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 class SettingsView(discord.ui.View):
