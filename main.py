@@ -843,96 +843,247 @@ class DashboardBot(commands.Bot):
             
             # Create the help embed with simple explanations
             embed = discord.Embed(
-                title="📚 Stock Terms Explained - Simple Guide",
-                description="Here's what all the stock terms mean, explained simply!",
+                title="📚 Stock Terms Explained - Complete Guide",
+                description="Everything you need to know about stocks, explained simply! 📖",
                 color=0x3498DB,
                 timestamp=datetime.now()
             )
             
-            # Price & Valuation
+            # PRICE & VALUATION - Section 1
             embed.add_field(
-                name="💰 Price & Valuation",
-                value="**P/E (Price to Earnings)** - How much you pay for $1 of earnings. Lower = cheaper.\n"
-                       "**Forward P/E** - Expected P/E next year\n"
-                       "**PEG (P/E to Growth)** - P/E divided by growth rate. Under 1 = potentially undervalued\n"
-                       "**P/B (Price to Book)** - Price vs company assets. Under 1 = potentially cheap\n"
-                       "**Market Cap** - Total value of all shares. Big = Blue chip, Small = risky",
+                name="💰 PRICE & VALUATION",
+                value="**Price** - What one share costs right now\n"
+                       "**Market Cap** - Total value = price × shares. Large = $10B+, Mid $2-10B, Small <$2B\n"
+                       "**P/E Ratio** - Price ÷ Earnings. How many years to earn back price. Lower = cheaper\n"
+                       "**Forward P/E** - Expected P/E next year based on forecasts\n"
+                       "**Trailing P/E** - P/E using past 12 months actual earnings\n"
+                       "**PEG Ratio** - P/E ÷ Growth Rate. Under 1 = possibly undervalued. Over 2 = expensive\n"
+                       "**P/B Ratio** - Price ÷ Book Value. Under 1 = potentially cheap. Over 3 = expensive\n"
+                       "**P/S Ratio** - Price ÷ Revenue. Under 1 = good. Shows how much you pay for $1 sales",
                 inline=False
             )
             
-            # Earnings
+            # EARNINGS - Section 2
             embed.add_field(
-                name="📈 Earnings Terms",
-                value="**EPS (Earnings Per Share)** - Company's profit divided by shares. Higher = better\n"
-                       "**Revenue** - Total money company made. Growing = good!\n"
-                       "**Profit Margin** - % of revenue left as profit. Higher = more efficient\n"
-                       "**Operating Margin** - Profit from main business operations\n"
-                       "**Gross Margin** - Profit after paying for products/services",
+                name="📈 EARNINGS & REVENUE",
+                value="**EPS** - Earnings Per Share. Profit ÷ shares. Higher = more profitable\n"
+                       "**Forward EPS** - Expected EPS next year\n"
+                       "**Revenue** - Total sales money. Growing = company is expanding\n"
+                       "**Gross Revenue** - Total sales BEFORE expenses\n"
+                       "**Net Income** - Profit AFTER all expenses (the real money made)\n"
+                       "**EBITDA** - Earnings before interest, taxes, depreciation. Pure operations profit\n"
+                       "**Profit Margin** - Net income ÷ revenue. Higher = more efficient\n"
+                       "**Operating Margin** - Operating income ÷ revenue. Shows core business health",
                 inline=False
             )
             
-            # Financial Health
+            # GROWTH - Section 3
             embed.add_field(
-                name="🏥 Financial Health",
-                value="**ROE (Return on Equity)** - How well company uses shareholder money. Higher = better\n"
-                       "**ROA (Return on Assets)** - How well company uses assets. Higher = better\n"
-                       "**Debt to Equity (D/E)** - How much debt vs equity. Lower = less risky\n"
-                       "**Current Ratio** - Ability to pay short-term debts. Over 1 = safe\n"
-                       "**Beta** - How volatile vs market. 1 = same as market, >1 = riskier",
+                name="📊 GROWTH METRICS",
+                value="**Revenue Growth** - YoY revenue increase %. 20%+ = fast grower\n"
+                       "**Earnings Growth** - YoY profit increase %. The key number!\n"
+                       "**5-Year Growth** - Average yearly growth over 5 years\n"
+                       "**Growth Rate** - How fast company is expanding. Higher = exciting but risky\n"
+                       "**CAGR** - Compound Annual Growth Rate. Smoothed yearly average\n"
+                       "**Quarterly Growth** - Last quarter vs same quarter last year\n"
+                       "**YoY (Year over Year)** - Comparing same time last year. Removes seasonality",
                 inline=False
             )
             
-            # Technical Indicators
+            # FINANCIAL HEALTH - Section 4
             embed.add_field(
-                name="📊 Technical Indicators",
-                value="**RSI (Relative Strength Index)** - Is it overbought (>70) or oversold (<30)?\n"
-                       "**MACD** - Trend indicator. Green line crossing up = bullish\n"
-                       "**SMA (Simple Moving Average)** - Average price over time. 20/50/200 days\n"
-                       "**ADX** - Trend strength. Above 25 = strong trend\n"
-                       "**Bollinger Bands** - Price volatility. Touching bands = possible reversal",
+                name="🏦 FINANCIAL HEALTH",
+                value="**Debt to Equity** - Total debt ÷ shareholder equity. Under 1 = safe. Over 2 = risky\n"
+                       "**Current Ratio** - Current assets ÷ current liabilities. Over 1.5 = healthy\n"
+                       "**Quick Ratio** - Same but excludes inventory. More conservative\n"
+                       "**Debt Ratio** - Total debt ÷ total assets. Lower = less risky\n"
+                       "**Interest Coverage** - Can they pay interest? Higher = safer\n"
+                       "**Cash Flow** - Money actually moving in/out. Positive = healthy\n"
+                       "**Free Cash Flow** - Cash after investments. For dividends/buybacks\n"
+                       "**Working Capital** - Current assets - liabilities. Needs to be positive",
                 inline=False
             )
             
-            # Advanced Terms
+            # RETURNS - Section 5
             embed.add_field(
-                name="🎯 Advanced Terms",
-                value="**Fibonacci Retracement** - Support/resistance levels based on math ratios\n"
-                       "**Put/Call Ratio** - More calls = bullish, more puts = bearish\n"
-                       "**Short Interest** - % of shares shorted. High = potential squeeze\n"
-                       "**Dividend Yield** - Annual dividend as % of price. Income investors love this\n"
-                       "**Analyst Rating** - Wall Street recommendation. Buy = bullish",
+                name="💵 RETURNS & PROFITABILITY",
+                value="**ROE** - Return on Equity. Profit ÷ shareholder equity. 15%+ = excellent\n"
+                       "**ROA** - Return on Assets. Profit ÷ total assets. 5%+ = good\n"
+                       "**ROIC** - Return on Invested Capital. 10%+ = creates value\n"
+                       "**Gross Margin** - Revenue - COGS ÷ revenue. Higher = pricing power\n"
+                       "**Operating Margin** - Operating income ÷ revenue. Shows efficiency\n"
+                       "**Net Margin** - Net income ÷ revenue. Final profitability\n"
+                       "**EBITDA Margin** - EBITDA ÷ revenue. Compare across industries",
                 inline=False
             )
             
-            # Performance
+            # TECHNICAL INDICATORS - Section 6
             embed.add_field(
-                name="📉 Performance Metrics",
-                value="**52W High/Low** - Highest and lowest price in past year\n"
-                       "**Volume** - Shares traded today. High volume = more interest\n"
-                       "**Sharpe Ratio** - Risk-adjusted return. Over 1 = good, over 2 = great\n"
-                       "**Max Drawdown** - Biggest drop from peak. Lower = less risky\n"
-                       "**Win Rate** - % of profitable trades in backtest",
+                name="📉 TECHNICAL INDICATORS",
+                value="**RSI (14)** - 0-100. Under 30 = oversold (buy!). Over 70 = overbought (sell!)\n"
+                       "**MACD** - Trend indicator. Green above red = bullish. Crossing up = buy signal\n"
+                       "**SMA 20** - 20-day average. Price above = short-term bullish\n"
+                       "**SMA 50** - 50-day average. The \"death cross\" = 200 below 50. \"Golden cross\" = opposite\n"
+                       "**SMA 200** - 200-day average. Long-term trend. Price above = healthy\n"
+                       "**EMA** - Exponential MA. More weight on recent prices. Faster signals\n"
+                       "**ADX** - Trend strength. 0-25 = no trend. 25-50 = strong trend. 50+ = very strong\n"
+                       "**Bollinger Bands** - Price channel. Touching top/bottom = potential reversal",
                 inline=False
             )
             
-            # Ownership
+            # CHART PATTERNS - Section 7
             embed.add_field(
-                name="👀 Ownership & Trading",
-                value="**Insider Transactions** - Company insiders buying/selling. They know the company!\n"
-                       "**Institutional Ownership** - % owned by big funds. High = confidence\n"
-                       "**Congress Trading** - Politicians trading the stock. Follow the money!\n"
-                       "**Short Interest** - % of shares being shorted. High = potential short squeeze",
+                name="📊 CHART PATTERNS",
+                value="**Support** - Price floor where buyers accumulate. \"Hold the line\"\n"
+                       "**Resistance** - Price ceiling where sellers. \"Hits a wall\"\n"
+                       "**Breakout** - Price breaks above resistance. Bullish!\n"
+                       "**Breakdown** - Price breaks below support. Bearish!\n"
+                       "**Fibonacci Retracement** - Support/resistance from math. 23.6%, 38.2%, 50%, 61.8%\n"
+                       "**Volume** - How many shares traded. High volume = strong conviction\n"
+                       "**Gap** - Price jumps. Up gap = bullish gap down = bearish\n"
+                       "**Trend Line** - Line connecting highs or lows. Break = trend change",
                 inline=False
             )
             
-            # How to Use
+            # OPTIONS & SHORTING - Section 8
             embed.add_field(
-                name="🎮 How to Use",
-                value="1. **Click Quick Search** - Enter any ticker for full analysis\n"
-                       "2. **Use /search command** - Same thing in chat\n"
-                       "3. **Add to Watchlist** - Track your favorite stocks\n"
-                       "4. **Set Price Alerts** - Get notified of price moves\n"
-                       "5. **Check Dashboard** - Market overview, top movers, and more!",
+                name="🎰 OPTIONS & SHORTING",
+                value="**Call Option** - Right to buy at strike price. Betting price goes UP\n"
+                       "**Put Option** - Right to sell at strike price. Betting price goes DOWN\n"
+                       "**Put/Call Ratio** - High puts = fear. High calls = greed. Under 0.5 = bullish\n"
+                       "**Max Pain** - Strike where options expire worthless. Where most pain occurs\n"
+                       "**OI** - Open Interest. Number of contracts outstanding\n"
+                       "**Volume (Options)** - How many contracts traded today\n"
+                       "**Short Interest** - % of float sold short. High = squeeze potential!\n"
+                       "**Short Squeeze** - Shorts forced to buy when price rises. Explosive! 🚀\n"
+                       "**Days to Cover** - How long to cover all shorts. High = squeeze likely",
+                inline=False
+            )
+            
+            # OWNERSHIP - Section 9
+            embed.add_field(
+                name="👥 OWNERSHIP & INSIDERS",
+                value="**Insider** - Company executives. They know the company best!\n"
+                       "**Insider Buying/Selling** - When insiders trade. Follow the experts!\n"
+                       "**Institutional Ownership** - % owned by big funds (Fidelity, Vanguard, etc)\n"
+                       "**Insider Ownership** - % owned by company insiders\n"
+                       "**13F Filing** - Quarterly report of institutional holdings. Big money moves!\n"
+                       "**Hedge Fund Ownership** - Smart money tracked here\n"
+                       "**ETF Ownership** - Index funds holding stock. These are buyers!\n"
+                       "**Retail Ownership** - Regular investors like us",
+                inline=False
+            )
+            
+            # ANALYSTS - Section 10
+            embed.add_field(
+                name="🎯 ANALYST RATINGS",
+                value="**Strong Buy** - Most confident. Expected huge upside\n"
+                       "**Buy** - Positive outlook. Good opportunity\n"
+                       "**Hold** - Neutral. No strong opinion\n"
+                       "**Sell** - Negative outlook. Expect decline\n"
+                       "**Strong Sell** - Very bearish. Avoid!\n"
+                       "**Price Target** - Where analyst thinks stock goes. Current price vs target = upside\n"
+                       "**Upside** - (Target - Price) ÷ Price × 100%. How much room to grow\n"
+                       "**Consensus** - Overall analyst opinion. Buy % = bullishness",
+                inline=False
+            )
+            
+            # DIVIDENDS - Section 11
+            embed.add_field(
+                name="💵 DIVIDENDS",
+                value="**Dividend** - Cash paid to shareholders. Like a reward!\n"
+                       "**Dividend Yield** - Annual dividend ÷ price. 3-5% = great income stock\n"
+                       "**Payout Ratio** - Dividend ÷ EPS. Under 50% = sustainable. Over 100% = risky!\n"
+                       "**Dividend Growth** - How much dividend increased yearly. 10%+ = great\n"
+                       "**Ex-Dividend Date** - Buy before this to get dividend\n"
+                       "**Record Date** - Must be on shareholder list\n"
+                       "**Payment Date** - When dividend actually pays\n"
+                       "**DRIP** - Reinvest dividends automatically to buy more shares",
+                inline=False
+            )
+            
+            # RISK METRICS - Section 12
+            embed.add_field(
+                name="⚠️ RISK METRICS",
+                value="**Beta** - Volatility vs SPY. 1 = same. 1.5 = 50% more volatile\n"
+                       "**Volatility (IV)** - How much price swings. High IV = risky but opportunity\n"
+                       "**Alpha** - Return above benchmark. Positive = beating market\n"
+                       "**Sharpe Ratio** - Return ÷ risk. Over 1 = good. Over 2 = excellent\n"
+                       "**Max Drawdown** - Worst peak-to-trough drop. Lower = less risky\n"
+                       "**Standard Deviation** - How spread out returns are. Higher = unpredictable\n"
+                       "**Value at Risk (VaR)** - Worst case loss in a day\n"
+                       "**Downside Deviation** - Volatility of only negative returns",
+                inline=False
+            )
+            
+            # SENTIMENT - Section 13
+            embed.add_field(
+                name="😊 SENTIMENT & SIGNALS",
+                value="**Bullish** - Expecting price to go up. Like optimistic! 🐂\n"
+                       "**Bearish** - Expecting price to go down. Like pessimistic! 🐻\n"
+                       "**Neutral** - No strong opinion either way\n"
+                       "**Quality Score** - Our rating of DD post credibility. 80+ = 💎\n"
+                       "**Sentiment** - Overall mood. Positive = buy, Negative = sell\n"
+                       "**Momentum** - How fast price is moving. High = trending strong\n"
+                       "**Trend** - Direction. Uptrend = higher highs. Downtrend = lower lows\n"
+                       "**Swing** - Short-term price movement. Days to weeks",
+                inline=False
+            )
+            
+            # PERFORMANCE - Section 14
+            embed.add_field(
+                name="📈 PERFORMANCE",
+                value="**52W High** - Highest price in last year. All-time high = ATH\n"
+                       "**52W Low** - Lowest price in last year. All-time low = ATL\n"
+                       "**% from 52W Low** - How far climbed. Small = room to grow\n"
+                       "**% from 52W High** - How far fell. Near top = expensive\n"
+                       "**1W/1M/3M/6M/1Y/3Y Return** - Performance over timeframes\n"
+                       "**vs SPY** - How stock performs vs S&P 500 benchmark\n"
+                       "**Excess Return** - Return above benchmark. Positive = beat market\n"
+                       "**Win Rate** - % of periods with positive returns\n"
+                       "**Profit Factor** - Gross profits ÷ gross losses. Over 1.5 = good",
+                inline=False
+            )
+            
+            # COMPANY INFO - Section 15
+            embed.add_field(
+                name="🏢 COMPANY INFO",
+                value="**Sector** - Industry group (Tech, Healthcare, Energy, etc)\n"
+                       "**Industry** - More specific (Semiconductors, Biotech, Oil & Gas)\n"
+                       "**Market Cap** - Total company value. Mega >$200B, Large $10-200B, Mid $2-10B\n"
+                       "**Employees** - Company size. Large = established\n"
+                       "**Business Model** - How they make money. Subscription, ads, product sales\n"
+                       "**Moat** - Competitive advantage. Brand, patents, network effects\n"
+                       "**TAM** - Total Addressable Market. How big the opportunity is\n"
+                       "**Earnings Date** - When they report results. Big moves possible!",
+                inline=False
+            )
+            
+            # CONGRESS TRADING - Section 16
+            embed.add_field(
+                name="🏛️ CONGRESS TRADING",
+                value="**Congress Trading** - When politicians trade stocks. They have insider info!\n"
+                       "**Stock Act** - Law requiring politicians to report trades within 45 days\n"
+                       "**Purchase** - Buying stock. They think it'll go up!\n"
+                       "**Sale** - Selling stock. They think it'll go down?\n"
+                       "**Party** - R (Republican) or D (Democrat). Trade with caution!\n"
+                       "**Chamber** - House or Senate. Both trade!\n"
+                       "**Amount Range** - How much traded. $1K-15K, $15K-50K, $50K-250K+\n"
+                       "**Following the Money** - Politicians often know what's coming!",
+                inline=False
+            )
+            
+            # HOW TO USE - Section 17
+            embed.add_field(
+                name="🎮 HOW TO USE THIS BOT",
+                value="**1. Quick Search** - Click button or type /search [ticker] for full report\n"
+                       "**2. Watchlist** - Track stocks you care about. Type /watchlist add [ticker]\n"
+                       "**3. Price Alerts** - Get notified. Type /alert [ticker] above $XXX\n"
+                       "**4. Full Report** - Click for HTML dashboard with 17 sections!\n"
+                       "**5. Dashboard Buttons** - Market Overview, Top Movers, Short Squeeze, more\n"
+                       "**6. Insider/Congress** - See what insiders and politicians are buying\n"
+                       "**7. Earnings** - See upcoming earnings dates. Position before moves!\n"
+                       "**8. Backtest** - See how stock would have performed historically",
                 inline=False
             )
             
