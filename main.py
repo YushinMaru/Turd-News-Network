@@ -679,6 +679,8 @@ class DashboardBot(commands.Bot):
         for guild in self.guilds:
             # Create stonk-bot channel for dashboard
             await self.create_dashboard_channel(guild)
+            # Create stonks channel for DD posts
+            await self.create_stonks_channel(guild)
     
     async def create_dashboard_channel(self, guild: discord.Guild):
         """Create #stonk-bot channel for the dashboard"""
@@ -701,44 +703,27 @@ class DashboardBot(commands.Bot):
             except Exception as e:
                 print(f"[DASHBOARD] Error creating channel: {e}")
                 return
+    
+    async def create_stonks_channel(self, guild: discord.Guild):
+        """Create #stonks channel for DD posts"""
+        channel_name = "stonks"
         
-        try:
-            await channel.purge(limit=50)
-        except:
-            pass
+        channel = None
+        for ch in guild.channels:
+            if ch.name == channel_name and isinstance(ch, discord.TextChannel):
+                channel = ch
+                break
         
-        embed = discord.Embed(
-            title="📊 WSB MONITOR DASHBOARD v6.0",
-            description="**Enhanced Trading Dashboard**",
-            color=0x00ff00,
-            timestamp=datetime.now()
-        )
-        
-        embed.add_field(
-            name="📌 Main Tools",
-            value="🔍 Quick Search | 📊 Full Report | ⭐ Watchlist",
-            inline=False
-        )
-        embed.add_field(
-            name="📈 Market Data",
-            value="📈 Overview | 🔥 Top Movers | 🎯 Short Squeeze",
-            inline=False
-        )
-        embed.add_field(
-            name="🔍 Activity Feeds",
-            value="👀 Insider | 🏛️ Congress | 📅 Earnings",
-            inline=False
-        )
-        embed.add_field(
-            name="⚙️ Controls",
-            value="🔄 Refresh | ⚙️ Settings",
-            inline=False
-        )
-        
-        embed.set_footer(text="Turd News Network v6.0 - All systems operational!")
-        
-        view = OverviewView(self.stock_fetcher, self.watchlist_manager)
-        await channel.send(embed=embed, view=view)
+        if not channel:
+            try:
+                overwrites = {
+                    guild.default_role: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+                    guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+                }
+                channel = await guild.create_text_channel(channel_name, overwrites=overwrites)
+                print(f"[DD POST] Created #{channel_name} channel")
+            except Exception as e:
+                print(f"[DD POST] Error creating channel: {e}")
     
     async def process_posts(self):
         print_separator()
