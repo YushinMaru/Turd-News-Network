@@ -1456,9 +1456,23 @@ class DashboardBot(commands.Bot):
     @tasks.loop(hours=3)
     async def reddit_scanner(self):
         try:
-            await self.process_posts()
+            # Run scan in background thread to NOT block user interactions
+            loop = asyncio.get_running_loop()
+            # Run in executor so it doesn't block the main event loop
+            await loop.run_in_executor(None, self._run_scan_sync)
         except Exception as e:
             print(f"[SCAN ERROR] {e}")
+    
+    def _run_scan_sync(self):
+        """Run the scan in a separate thread with its own event loop"""
+        import threading
+        # Create a new event loop in this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(self.process_posts())
+        finally:
+            loop.close()
     
     @reddit_scanner.before_loop
     async def before_scan(self):
