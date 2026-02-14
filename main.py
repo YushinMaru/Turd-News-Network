@@ -532,7 +532,10 @@ class OverviewView(discord.ui.View):
         except Exception as e:
             print(f"[DASHBOARD ERROR] Market Overview button: {e}")
             traceback.print_exc()
-            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+            try:
+                await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+            except:
+                pass
     
     @discord.ui.button(label="🔥 Top Movers", style=discord.ButtonStyle.primary, row=1)
     async def movers_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -593,7 +596,10 @@ class OverviewView(discord.ui.View):
         except Exception as e:
             print(f"[DASHBOARD ERROR] Short Squeeze button: {e}")
             traceback.print_exc()
-            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+            try:
+                await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+            except:
+                pass
     
     @discord.ui.button(label="👀 Insider Feed", style=discord.ButtonStyle.secondary, row=2)
     async def insider_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -603,7 +609,10 @@ class OverviewView(discord.ui.View):
         except Exception as e:
             print(f"[DASHBOARD ERROR] Insider Feed button: {e}")
             traceback.print_exc()
-            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+            try:
+                await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+            except:
+                pass
     
     @discord.ui.button(label="🏛️ Congress", style=discord.ButtonStyle.secondary, row=2)
     async def congress_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -613,7 +622,10 @@ class OverviewView(discord.ui.View):
         except Exception as e:
             print(f"[DASHBOARD ERROR] Congress button: {e}")
             traceback.print_exc()
-            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+            try:
+                await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+            except:
+                pass
     
     @discord.ui.button(label="📅 Earnings", style=discord.ButtonStyle.secondary, row=2)
     async def earnings_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -623,7 +635,10 @@ class OverviewView(discord.ui.View):
         except Exception as e:
             print(f"[DASHBOARD ERROR] Earnings button: {e}")
             traceback.print_exc()
-            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+            try:
+                await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+            except:
+                pass
     
     @discord.ui.button(label="🔄 Refresh", style=discord.ButtonStyle.success, row=3)
     async def refresh_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
