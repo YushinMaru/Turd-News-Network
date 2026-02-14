@@ -1463,16 +1463,35 @@ class DashboardBot(commands.Bot):
             print("[DASHBOARD] Sending dashboard...")
             
             for guild in self.guilds:
+                print(f"[DASHBOARD] Checking guild: {guild.name}")
                 dashboard_channel = None
                 stonks_channel = None
+                
+                # Try to find or create the channel
+                channel_name = DASHBOARD_CHANNEL_NAME
                 for ch in guild.text_channels:
-                    if ch.name == "stonk-bot":
+                    if ch.name == channel_name:
                         dashboard_channel = ch
+                        print(f"[DASHBOARD] Found {channel_name} channel")
                     if ch.name == "stonks":
                         stonks_channel = ch
                 
+                # If not found, create it
                 if not dashboard_channel:
-                    print("[DASHBOARD] ERROR: stonk-bot channel not found!")
+                    print(f"[DASHBOARD] Creating #{channel_name} channel...")
+                    try:
+                        overwrites = {
+                            guild.default_role: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+                            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+                        }
+                        dashboard_channel = await guild.create_text_channel(channel_name, overwrites=overwrites)
+                        print(f"[DASHBOARD] Created #{channel_name}")
+                    except Exception as e:
+                        print(f"[DASHBOARD] Error creating channel: {e}")
+                        continue
+                
+                if not dashboard_channel:
+                    print("[DASHBOARD] ERROR: stonk-bot channel not found and could not create!")
                     continue
                 
                 # Clear previous dashboard messages (keep only pinned)
