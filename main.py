@@ -530,17 +530,22 @@ class OverviewView(discord.ui.View):
             print(f"[DASHBOARD] Market Overview button clicked by user {interaction.user.id}")
             await interaction.response.defer(ephemeral=True, thinking=True)
             
-            indices = ['SPY', 'QQQ', 'IWM', 'GLD', 'TLT', 'VIX']
+            indices = ['SPY', 'QQQ', 'IWM', 'GLD', 'TLT']
             loop = asyncio.get_running_loop()
             market_data = {}
             
             def fetch_market():
-                from stock_data import StockDataFetcher
-                fetcher = StockDataFetcher(None)
+                import yfinance as yf
                 for ticker in indices:
-                    data = fetcher.get_stock_data(ticker)
-                    if data:
-                        market_data[ticker] = data
+                    try:
+                        stock = yf.Ticker(ticker)
+                        info = stock.info
+                        if info and 'currentPrice' in info:
+                            price = info.get('currentPrice', 0)
+                            change_pct = info.get('regularMarketChangePercent', 0)
+                            market_data[ticker] = {'price': price, 'change_pct': change_pct}
+                    except Exception as e:
+                        print(f"[X] Error getting data for {ticker}: {e}")
                     time.sleep(0.3)
             
             await loop.run_in_executor(None, fetch_market)
@@ -551,6 +556,9 @@ class OverviewView(discord.ui.View):
                 change = data.get('change_pct', 0)
                 emoji = "🟢" if change >= 0 else "🔴"
                 embed.add_field(name=f"{ticker}", value=f"${price:.2f} {emoji} {change:+.2f}%", inline=True)
+            
+            if not market_data:
+                embed.description = "Could not fetch market data. Try again later."
             
             await interaction.followup.send(embed=embed, ephemeral=True)
         except Exception as e:
@@ -621,6 +629,15 @@ class OverviewView(discord.ui.View):
             db = DatabaseManager()
             conn = db.get_connection()
             c = conn.cursor()
+            
+            # Check if short_interest column exists
+            c.execute("PRAGMA table_info(stock_tracking)")
+            columns = [row[1] for row in c.fetchall()]
+            
+            if 'short_interest' not in columns:
+                conn.close()
+                await interaction.followup.send("🎯 **Short Squeeze Watch**\n\nShort interest data is not available. This feature requires short interest data to be collected first.", ephemeral=True)
+                return
             
             c.execute('''
                 SELECT ticker, MAX(price_change_pct) as change_pct, 
