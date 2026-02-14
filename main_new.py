@@ -687,7 +687,6 @@ class SlashCommands:
     @app_commands.describe(ticker="Stock ticker symbol (e.g., NVDA, MSFT)")
     async def search(self, interaction: discord.Interaction, ticker: str):
         """Search for a stock ticker"""
-        print(f"[SLASH] /search called by user {interaction.user.id} ({interaction.user.name}) with ticker: {ticker}")
         await interaction.response.defer(ephemeral=True, thinking=True)
         
         try:
@@ -745,7 +744,6 @@ class SlashCommands:
     @app_commands.describe(ticker="Stock ticker to add or remove")
     async def watchlist(self, interaction: discord.Interaction, action: str, ticker: str = None):
         """Manage your watchlist"""
-        print(f"[SLASH] /watchlist called by user {interaction.user.id} ({interaction.user.name}) action: {action} ticker: {ticker}")
         user_id = str(interaction.user.id)
         
         if action.lower() == "list":
@@ -797,7 +795,6 @@ class SlashCommands:
     @app_commands.command(name="market", description="Show market overview")
     async def market(self, interaction: discord.Interaction):
         """Show market overview"""
-        print(f"[SLASH] /market called by user {interaction.user.id} ({interaction.user.name})")
         await interaction.response.defer(ephemeral=True, thinking=True)
         
         try:
@@ -844,7 +841,6 @@ class SlashCommands:
     @app_commands.command(name="movers", description="Show top movers")
     async def movers(self, interaction: discord.Interaction):
         """Show top movers"""
-        print(f"[SLASH] /movers called by user {interaction.user.id} ({interaction.user.name})")
         await interaction.response.defer(ephemeral=True, thinking=True)
         
         try:
@@ -896,7 +892,6 @@ class SlashCommands:
     @app_commands.command(name="shortsqueeze", description="Show short squeeze candidates")
     async def shortsqueeze(self, interaction: discord.Interaction):
         """Show short squeeze candidates"""
-        print(f"[SLASH] /shortsqueeze called by user {interaction.user.id} ({interaction.user.name})")
         await interaction.response.defer(ephemeral=True, thinking=True)
         
         try:
@@ -952,7 +947,6 @@ class SlashCommands:
     @app_commands.command(name="insider", description="Show insider activity")
     async def insider(self, interaction: discord.Interaction):
         """Show insider activity"""
-        print(f"[SLASH] /insider called by user {interaction.user.id} ({interaction.user.name})")
         await interaction.response.defer(ephemeral=True, thinking=True)
         
         try:
@@ -1014,7 +1008,6 @@ class SlashCommands:
     @app_commands.command(name="congress", description="Show congress trading activity")
     async def congress(self, interaction: discord.Interaction):
         """Show congress trading"""
-        print(f"[SLASH] /congress called by user {interaction.user.id} ({interaction.user.name})")
         await interaction.response.defer(ephemeral=True, thinking=True)
         
         try:
@@ -1075,7 +1068,6 @@ class SlashCommands:
     @app_commands.command(name="earnings", description="Show upcoming earnings")
     async def earnings(self, interaction: discord.Interaction):
         """Show upcoming earnings"""
-        print(f"[SLASH] /earnings called by user {interaction.user.id} ({interaction.user.name})")
         await interaction.response.defer(ephemeral=True, thinking=True)
         
         try:
@@ -1128,111 +1120,9 @@ class SlashCommands:
             
         except Exception as e:
             await interaction.followup.send(f"❌ Error: {str(e)[:200]}", ephemeral=True)
-    
-    @app_commands.command(name="alert", description="Set a price alert for a stock")
-    @app_commands.describe(ticker="Stock ticker (e.g., NVDA)")
-    @app_commands.describe(direction="above or below current price")
-    @app_commands.describe(price="Target price")
-    async def alert(self, interaction: discord.Interaction, ticker: str, direction: str, price: str):
-        """Set a price alert"""
-        print(f"[SLASH] /alert called by user {interaction.user.id} ({interaction.user.name}) ticker: {ticker} direction: {direction} price: {price}")
-        user_id = str(interaction.user.id)
-        ticker = ticker.strip().upper()
-        
-        try:
-            price_val = float(price.replace('$', '').replace(',', ''))
-        except ValueError:
-            await interaction.response.send_message("Invalid price format. Use like: 100 or 100.50", ephemeral=True)
-            return
-        
-        if direction.lower() not in ['above', 'below']:
-            await interaction.response.send_message("Direction must be 'above' or 'below'", ephemeral=True)
-            return
-        
-        self.bot.db.ensure_user_exists(user_id, username=interaction.user.name)
-        
-        if direction.lower() == "above":
-            self.bot.db.add_to_watchlist(user_id, ticker, notes='', alert_price_above=price_val, alert_price_below=None)
-        else:
-            self.bot.db.add_to_watchlist(user_id, ticker, notes='', alert_price_above=None, alert_price_below=price_val)
-        
-        emoji = "📈" if direction.lower() == "above" else "📉"
-        await interaction.response.send_message(
-            f"{emoji} Alert set for **{ticker}** {direction} **${price_val:.2f}**",
-            ephemeral=True
-        )
-    
-    @app_commands.command(name="alerts", description="View your price alerts")
-    async def alerts(self, interaction: discord.Interaction):
-        """View your price alerts"""
-        print(f"[SLASH] /alerts called by user {interaction.user.id} ({interaction.user.name})")
-        user_id = str(interaction.user.id)
-        
-        watchlist = self.bot.db.get_user_watchlist(user_id)
-        alerts = [w for w in watchlist if w.get('alert_enabled') and (w.get('alert_price_above') or w.get('alert_price_below'))]
-        
-        if not alerts:
-            embed = discord.Embed(
-                title="Your Price Alerts",
-                description="No alerts set! Use /alert TICKER above/below PRICE",
-                color=0x3498db,
-                timestamp=datetime.now()
-            )
-        else:
-            embed = discord.Embed(
-                title="Your Price Alerts",
-                description=f"You have {len(alerts)} alert(s) set:",
-                color=0x3498db,
-                timestamp=datetime.now()
-            )
-            for item in alerts[:10]:
-                ticker = item.get('ticker', 'N/A')
-                above = item.get('alert_price_above')
-                below = item.get('alert_price_below')
-                above_str = f"📈 ${above:.2f}" if above else ""
-                below_str = f"📉 ${below:.2f}" if below else ""
-                embed.add_field(name=f"${ticker}", value=f"{above_str} {below_str}".strip(), inline=True)
-        
-        embed.set_footer(text="Turd News Network v6.0")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-    
-    @app_commands.command(name="report", description="Generate a comprehensive HTML report")
-    @app_commands.describe(ticker="Stock ticker (e.g., NVDA)")
-    async def report(self, interaction: discord.Interaction, ticker: str):
-        """Generate HTML report"""
-        print(f"[SLASH] /report called by user {interaction.user.id} ({interaction.user.name}) with ticker: {ticker}")
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        ticker = ticker.strip().upper()
-        
-        try:
-            from company_intelligence_dashboard import generate_company_dashboard
-            
-            loop = asyncio.get_running_loop()
-            html_file = await loop.run_in_executor(None, generate_company_dashboard, ticker)
-            
-            if html_file and os.path.exists(html_file):
-                embed = discord.Embed(
-                    title=f"{ticker} - Company Intelligence Report",
-                    description="17-Section Comprehensive Analysis",
-                    color=0x3498db,
-                    timestamp=datetime.now()
-                )
-                embed.add_field(name="Download", value="Download the HTML file below to view", inline=False)
-                embed.set_footer(text="Turd News Network v6.0")
-                
-                await interaction.followup.send(embed=embed, file=discord.File(html_file), ephemeral=True)
-                try:
-                    os.remove(html_file)
-                except:
-                    pass
-            else:
-                await interaction.followup.send(f"Could not generate report for **{ticker}**", ephemeral=True)
-        except Exception as e:
-            await interaction.followup.send(f"Error: {str(e)[:200]}", ephemeral=True)
 
 
 # ============== DASHBOARD BOT ==============
-
 
 class DashboardBot(commands.Bot):
     """Main bot class"""
@@ -1276,9 +1166,6 @@ class DashboardBot(commands.Bot):
         self.tree.add_command(self.slash_cmds.insider)
         self.tree.add_command(self.slash_cmds.congress)
         self.tree.add_command(self.slash_cmds.earnings)
-        self.tree.add_command(self.slash_cmds.alert)
-        self.tree.add_command(self.slash_cmds.alerts)
-        self.tree.add_command(self.slash_cmds.report)
         
         # Sync commands with Discord
         try:
@@ -1300,7 +1187,7 @@ class DashboardBot(commands.Bot):
     
     async def on_ready(self):
         print(f"[BOT] Ready: {self.user}")
-        print(f"[SLASH] Available commands: /search, /watchlist, /market, /movers, /shortsqueeze, /insider, /congress, /earnings, /alert, /alerts, /report")
+        print(f"[SLASH] Available commands: /search, /watchlist, /market, /movers, /shortsqueeze, /insider, /congress, /earnings")
         
         for guild in self.guilds:
             await self.create_dashboard_channel(guild)
@@ -1359,74 +1246,41 @@ class DashboardBot(commands.Bot):
             traceback.print_exc()
     
     async def send_pinned_help_message(self, channel):
-        """Send a pinned glossary message"""
+        """Send a pinned help message"""
         try:
-            # Check if already posted
             async for message in channel.history(limit=50):
-                if message.author == self.user and message.embeds:
-                    if "Glossary" in message.embeds[0].title:
-                        return
+                if message.author == self.user and message.content.startswith("📚 **TURD NEWS NETWORK"):
+                    return
             
-            # Embed 1: Title & Intro
-            embed1 = discord.Embed(
-                title="📚 Stock Terms Glossary",
-                description="Your guide to understanding stock market terminology!",
+            embed = discord.Embed(
+                title="📚 Stock Terms Explained - Complete Guide",
+                description="Use /search [ticker] to look up stocks!",
                 color=0x3498DB,
                 timestamp=datetime.now()
             )
-            embed1.add_field(name="📖 How to Use", value="Use /search [ticker] to look up stocks and see these terms in action!", inline=False)
-            embed1.set_footer(text="Turd News Network v6.0 • Part 1/4")
             
-            # Embed 2: Basic Terms
-            embed2 = discord.Embed(
-                title="💰 Basic Terms",
-                color=0x2ECC71,
-                timestamp=datetime.now()
+            embed.add_field(
+                name="📖 Available Commands",
+                value="• /search [ticker] - Search stock data\n"
+                       "• /watchlist add/remove/list - Manage watchlist\n"
+                       "• /market - Market overview\n"
+                       "• /movers - Top gainers/losers\n"
+                       "• /shortsqueeze - High short interest\n"
+                       "• /insider - Insider activity\n"
+                       "• /congress - Congress trading\n"
+                       "• /earnings - Upcoming earnings",
+                inline=False
             )
-            embed2.add_field(name="📊 DD", value="Due Diligence - Research before investing", inline=False)
-            embed2.add_field(name="🐂 Bull", value="Expecting price to go up", inline=False)
-            embed2.add_field(name="🐻 Bear", value="Expecting price to go down", inline=False)
-            embed2.add_field(name="📈 TA", value="Technical Analysis - Chart patterns", inline=False)
-            embed2.add_field(name="📉 FD", value="Fundamental Analysis - Financials/earnings", inline=False)
-            embed2.set_footer(text="Turd News Network v6.0 • Part 2/4")
             
-            # Embed 3: Trading Terms
-            embed3 = discord.Embed(
-                title="🎯 Trading Terms",
-                color=0xE74C3C,
-                timestamp=datetime.now()
-            )
-            embed3.add_field(name="🔥 Short Squeeze", value="When short sellers forced to buy", inline=False)
-            embed3.add_field(name="📊 Options", value="Contracts to buy/sell at set prices", inline=False)
-            embed3.add_field(name="⚡ Gamma", value="Rate of delta change - options sensitivity", inline=False)
-            embed3.add_field(name="💎 Diamond Hands", value="Hold through volatility", inline=False)
-            embed3.add_field(name="🧻 Paper Hands", value="Sell at first sign of red", inline=False)
-            embed3.set_footer(text="Turd News Network v6.0 • Part 3/4")
+            embed.set_footer(text="Turd News Network v6.0 • 📌 Pinned for easy reference")
             
-            # Embed 4: Advanced Terms
-            embed4 = discord.Embed(
-                title="🚀 Advanced Terms",
-                color=0x9B59B6,
-                timestamp=datetime.now()
-            )
-            embed4.add_field(name="👀 Short Interest", value="% of shares sold short", inline=False)
-            embed4.add_field(name="🏛️ Congress Trading", value="Trades by US politicians", inline=False)
-            embed4.add_field(name="👤 Insider Trading", value="Trades by company executives", inline=False)
-            embed4.add_field(name="📈 RSI", value="Relative Strength Index - momentum", inline=False)
-            embed4.add_field(name="💵 EPS", value="Earnings Per Share", inline=False)
-            embed4.set_footer(text="Turd News Network v6.0 • Part 4/4")
-            
-            # Send all embeds
-            await channel.send(embed=embed1)
-            await channel.send(embed=embed2)
-            await channel.send(embed=embed3)
-            msg = await channel.send(embed=embed4)
-            await msg.pin()
-            
-            print(f"[PIN] ✅ Pinned glossary message")
+            help_msg = await channel.send(embed=embed)
+            await help_msg.pin()
+            print(f"[PIN] ✅ Pinned help message")
             
         except Exception as e:
             print(f"[PIN ERROR] Failed to create pinned message: {e}")
+    
     async def create_dashboard_channel(self, guild: discord.Guild):
         channel_name = "stonk-bot"
         
