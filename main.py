@@ -528,10 +528,33 @@ class OverviewView(discord.ui.View):
     async def market_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         try:
             print(f"[DASHBOARD] Market Overview button clicked by user {interaction.user.id}")
-            await interaction.response.send_modal(MarketOverviewModal())
+            await interaction.response.defer(ephemeral=True, thinking=True)
+            
+            indices = ['SPY', 'QQQ', 'IWM', 'GLD', 'TLT', 'VIX']
+            loop = asyncio.get_running_loop()
+            market_data = {}
+            
+            def fetch_market():
+                from stock_data import StockDataFetcher
+                fetcher = StockDataFetcher(None)
+                for ticker in indices:
+                    data = fetcher.get_stock_data(ticker)
+                    if data:
+                        market_data[ticker] = data
+                    time.sleep(0.3)
+            
+            await loop.run_in_executor(None, fetch_market)
+            
+            embed = discord.Embed(title="📈 Market Overview", description="Major indices and ETFs", color=0x3498db, timestamp=datetime.now())
+            for ticker, data in market_data.items():
+                price = data.get('price', 0)
+                change = data.get('change_pct', 0)
+                emoji = "🟢" if change >= 0 else "🔴"
+                embed.add_field(name=f"{ticker}", value=f"${price:.2f} {emoji} {change:+.2f}%", inline=True)
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
         except Exception as e:
-            print(f"[DASHBOARD ERROR] Market Overview button: {e}")
-            traceback.print_exc()
+            print(f"[DASHBOARD ERROR] Market Overview: {e}")
             try:
                 await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
             except:
@@ -592,10 +615,38 @@ class OverviewView(discord.ui.View):
     async def squeeze_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         try:
             print(f"[DASHBOARD] Short Squeeze button clicked by user {interaction.user.id}")
-            await interaction.response.send_modal(ShortSqueezeModal())
+            await interaction.response.defer(ephemeral=True, thinking=True)
+            
+            from database import DatabaseManager
+            db = DatabaseManager()
+            conn = db.get_connection()
+            c = conn.cursor()
+            
+            c.execute('''
+                SELECT ticker, MAX(price_change_pct) as change_pct, 
+                       MAX(short_interest) as short_interest
+                FROM stock_tracking 
+                WHERE short_interest IS NOT NULL AND short_interest > 0.1
+                GROUP BY ticker
+                ORDER BY short_interest DESC
+                LIMIT 15
+            ''')
+            results = c.fetchall()
+            conn.close()
+            
+            if not results:
+                await interaction.followup.send("🎯 **Short Squeeze Watch**\n\nNo high short interest stocks found in database yet.", ephemeral=True)
+                return
+            
+            embed = discord.Embed(title="🎯 Short Squeeze Watch", description="Stocks with high short interest (>10%)", color=0xFF6600, timestamp=datetime.now())
+            for ticker, change, short_pct in results:
+                short_emoji = "🔥" if short_pct > 0.20 else "⚠️" if short_pct > 0.15 else "👀"
+                change_emoji = "🟢" if change >= 0 else "🔴"
+                embed.add_field(name=f"{short_emoji} ${ticker}", value=f"Short: **{short_pct*100:.1f}%** | {change_emoji} {change:+.1f}%", inline=True)
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
         except Exception as e:
-            print(f"[DASHBOARD ERROR] Short Squeeze button: {e}")
-            traceback.print_exc()
+            print(f"[DASHBOARD ERROR] Short Squeeze: {e}")
             try:
                 await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
             except:
@@ -605,10 +656,41 @@ class OverviewView(discord.ui.View):
     async def insider_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         try:
             print(f"[DASHBOARD] Insider Feed button clicked by user {interaction.user.id}")
-            await interaction.response.send_modal(InsiderModal())
+            await interaction.response.defer(ephemeral=True, thinking=True)
+            
+            from database import DatabaseManager
+            from stock_data import StockDataFetcher
+            db = DatabaseManager()
+            fetcher = StockDataFetcher(db)
+            tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD']
+            insider_trades = []
+            
+            loop = asyncio.get_running_loop()
+            def fetch_insider():
+                for ticker in tickers:
+                    try:
+                        data = fetcher.get_insider_data(ticker, ticker)
+                        if data and data.get('buys', 0) > 0:
+                            insider_trades.append({'ticker': ticker, 'data': data})
+                    except: continue
+                    time.sleep(0.3)
+            
+            await loop.run_in_executor(None, fetch_insider)
+            
+            embed = discord.Embed(title="👀 Insider Activity Feed", description="Recent insider buying activity", color=0x9B59B6, timestamp=datetime.now())
+            if not insider_trades:
+                embed.description = "No recent insider activity found."
+            else:
+                for item in insider_trades[:10]:
+                    ticker = item['ticker']
+                    data = item['data']
+                    buys = data.get('buys', 0)
+                    sells = data.get('sells', 0)
+                    embed.add_field(name=f"${ticker}", value=f"🟢 **{buys}** Buys | 🔴 **{sells}** Sells", inline=True)
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
         except Exception as e:
-            print(f"[DASHBOARD ERROR] Insider Feed button: {e}")
-            traceback.print_exc()
+            print(f"[DASHBOARD ERROR] Insider Feed: {e}")
             try:
                 await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
             except:
@@ -618,10 +700,34 @@ class OverviewView(discord.ui.View):
     async def congress_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         try:
             print(f"[DASHBOARD] Congress button clicked by user {interaction.user.id}")
-            await interaction.response.send_modal(CongressModal())
+            await interaction.response.defer(ephemeral=True, thinking=True)
+            
+            from database import DatabaseManager
+            db = DatabaseManager()
+            conn = db.get_connection()
+            c = conn.cursor()
+            
+            c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='congress_trades'")
+            if c.fetchone():
+                c.execute('SELECT ticker, politician_name, party, transaction_type, amount_range FROM congress_trades ORDER BY transaction_date DESC LIMIT 15')
+                results = c.fetchall()
+                conn.close()
+                
+                embed = discord.Embed(title="🏛️ Congressional Trading", description="Recent trades by US Congress members", color=0x1ABC9C, timestamp=datetime.now())
+                if results:
+                    for ticker, member, party, txn_type, amount in results:
+                        emoji = "🟢" if "PURCHASE" in str(txn_type).upper() else "🔴"
+                        embed.add_field(name=f"{emoji} ${ticker}", value=f"{member} ({party})\n{txn_type} - {amount}", inline=True)
+                else:
+                    embed.description = "No recent congressional trades found."
+            else:
+                conn.close()
+                embed = discord.Embed(title="🏛️ Congressional Trading", description="Congress trading data will appear here after scans!", color=0x1ABC9C, timestamp=datetime.now())
+                embed.add_field(name="📝 Note", value="Run some stock scans to collect congress trading data.", inline=False)
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
         except Exception as e:
-            print(f"[DASHBOARD ERROR] Congress button: {e}")
-            traceback.print_exc()
+            print(f"[DASHBOARD ERROR] Congress: {e}")
             try:
                 await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
             except:
@@ -631,10 +737,38 @@ class OverviewView(discord.ui.View):
     async def earnings_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         try:
             print(f"[DASHBOARD] Earnings button clicked by user {interaction.user.id}")
-            await interaction.response.send_modal(EarningsModal())
+            await interaction.response.defer(ephemeral=True, thinking=True)
+            
+            from database import DatabaseManager
+            from stock_data import StockDataFetcher
+            user_id = str(interaction.user.id)
+            db = DatabaseManager()
+            fetcher = StockDataFetcher(db)
+            watchlist = db.get_user_watchlist(user_id)
+            
+            if not watchlist:
+                await interaction.followup.send("📅 **Earnings Calendar**\n\nYour watchlist is empty! Add stocks to see their earnings dates.", ephemeral=True)
+                return
+            
+            embed = discord.Embed(title="📅 Earnings Calendar", description="Upcoming earnings for your watchlist stocks", color=0xE67E22, timestamp=datetime.now())
+            
+            loop = asyncio.get_running_loop()
+            def fetch_earnings():
+                for item in watchlist[:15]:
+                    ticker = item['ticker']
+                    try:
+                        data = fetcher.get_stock_data(ticker)
+                        if data and data.get('earnings_date'):
+                            embed.add_field(name=f"${ticker}", value=f"📅 {data.get('earnings_date', 'TBA')}", inline=True)
+                    except: continue
+            
+            await loop.run_in_executor(None, fetch_earnings)
+            if len(embed.fields) == 0:
+                embed.description = "No earnings dates found for your watchlist stocks."
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
         except Exception as e:
-            print(f"[DASHBOARD ERROR] Earnings button: {e}")
-            traceback.print_exc()
+            print(f"[DASHBOARD ERROR] Earnings: {e}")
             try:
                 await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
             except:
@@ -1340,6 +1474,18 @@ class DashboardBot(commands.Bot):
                 if not dashboard_channel:
                     print("[DASHBOARD] ERROR: stonk-bot channel not found!")
                     continue
+                
+                # Clear previous dashboard messages (keep only pinned)
+                try:
+                    async for msg in dashboard_channel.history(limit=50):
+                        if msg.author == self.user and not msg.pinned:
+                            try:
+                                await msg.delete()
+                            except:
+                                pass
+                    print("[DASHBOARD] Cleared old dashboard messages")
+                except Exception as e:
+                    print(f"[DASHBOARD] Error clearing channel: {e}")
                 
                 if stonks_channel:
                     await self.send_pinned_help_message(stonks_channel)
