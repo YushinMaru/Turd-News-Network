@@ -49,7 +49,7 @@ SUBREDDITS = [
     'Baystreetbets', 'FatFIRE', 'LeanFIRE', 'ChubbyFIRE', 'stocks_india',
     'Shortsqueeze', 'SqueezePlays', 'Market_Sentiment', 'technicalanalysis',
     'swingtrading', 'StockMarketNews', 'StocksToBuy', 'InvestmentClub',
-    'CryptoMarkets', 'Altcoins', 'DeFi', 'StockMarketPredictions',
+    'CryptoMarkets', 'Altcoins', 'DeFi',
     'EarningsReports', 'Macroeconomics', 'Economics', 'GlobalMarkets',
     'ETF', 'IndexFunds', 'MutualFunds', 'RealEstateInvesting',
     'Wallstreetbetsnew', 'UndervaluedStonks', 'PennyStockSpeculation',
