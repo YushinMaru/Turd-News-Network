@@ -1558,69 +1558,166 @@ class DashboardBot(commands.Bot):
     async def send_pinned_help_message(self, channel):
         """Send a pinned glossary message"""
         try:
-            # Check if already posted
-            async for message in channel.history(limit=50):
-                if message.author == self.user and message.embeds:
-                    if "Glossary" in message.embeds[0].title:
-                        return
+            # Check if already posted - more thorough check
+            existing_messages = []
+            async for message in channel.history(limit=100):
+                if message.author == self.user:
+                    existing_messages.append(message)
+                    if message.embeds and "Glossary" in message.embeds[0].title:
+                        # Check if already pinned
+                        if message.pinned:
+                            print(f"[PIN] Glossary already pinned, skipping")
+                            return
+                        else:
+                            # Unpin old message if exists but not pinned
+                            try:
+                                await message.unpin()
+                            except:
+                                pass
             
-            # Embed 1: Title & Intro
+            # Build comprehensive glossary
+            # Embed 1: Getting Started & Basics
             embed1 = discord.Embed(
-                title="📚 Stock Terms Glossary",
-                description="Your guide to understanding stock market terminology!",
+                title="📚 Stock Market Glossary - Getting Started",
+                description="🎯 **Learn to speak 'stock' in 5 minutes!**\n\nThink of stocks like tiny pieces of a company pizza. When you buy a stock, you own a slice of that company!",
                 color=0x3498DB,
                 timestamp=datetime.now()
             )
-            embed1.add_field(name="📖 How to Use", value="Use /search [ticker] to look up stocks and see these terms in action!", inline=False)
-            embed1.set_footer(text="Turd News Network v6.0 • Part 1/4")
+            embed1.add_field(name="🏢 What is a Stock?", value="A stock is like a tiny golden ticket. When you buy one, you own a tiny piece of a company! Companies sell these to get money to grow.", inline=False)
+            embed1.add_field(name="📈 Stock Price", value="The price changes every day - like how the price of your favorite toy might go up or down based on how popular it is!", inline=False)
+            embed1.add_field(name="🐂 Bull Market", value="When prices are going UP! 📈 Think of a bull (the animal) charging forward - that's the market charging up too!", inline=False)
+            embed1.add_field(name="🐻 Bear Market", value="When prices are going DOWN! 📉 Think of a bear sleeping - the market is 'down' just like the bear!", inline=False)
+            embed1.add_field(name="📊 Market Cap", value="Market Capitalization = How much the WHOLE company is worth. It's like knowing how much the entire toy store is worth!", inline=False)
+            embed1.set_footer(text="Turd News Network • Part 1/10")
             
-            # Embed 2: Basic Terms
+            # Embed 2: Trading Basics
             embed2 = discord.Embed(
-                title="💰 Basic Terms",
+                title="💰 Trading 101 - Let's Buy & Sell!",
                 color=0x2ECC71,
                 timestamp=datetime.now()
             )
-            embed2.add_field(name="📊 DD", value="Due Diligence - Research before investing", inline=False)
-            embed2.add_field(name="🐂 Bull", value="Expecting price to go up", inline=False)
-            embed2.add_field(name="🐻 Bear", value="Expecting price to go down", inline=False)
-            embed2.add_field(name="📈 TA", value="Technical Analysis - Chart patterns", inline=False)
-            embed2.add_field(name="📉 FD", value="Fundamental Analysis - Financials/earnings", inline=False)
-            embed2.set_footer(text="Turd News Network v6.0 • Part 2/4")
+            embed2.add_field(name="🟢 Buy / Long", value="When you think a stock will go UP, you 'buy' or go 'long'. It's like buying a toy because you think it'll be worth more later!", inline=False)
+            embed2.add_field(name="🔴 Sell / Short", value="When you think a stock will go DOWN, you 'sell short'. It's like borrowing your friend's toy, selling it, and hoping to buy it back cheaper!", inline=False)
+            embed2.add_field(name="💵 Bid Price", value="The price people are OFFERING to pay for a stock. Like the price on the tag at a store!", inline=False)
+            embed2.add_field(name="💎 Ask Price", value="The price sellers want to RECEIVE. Like when you sell your old bike, what's the lowest you'll take?", inline=False)
+            embed2.add_field(name="📊 Volume", value="How many stocks changed hands today! High volume = lots of people trading!", inline=False)
+            embed2.set_footer(text="Turd News Network • Part 2/10")
             
-            # Embed 3: Trading Terms
+            # Embed 3: Due Diligence
             embed3 = discord.Embed(
-                title="🎯 Trading Terms",
-                color=0xE74C3C,
-                timestamp=datetime.now()
-            )
-            embed3.add_field(name="🔥 Short Squeeze", value="When short sellers forced to buy", inline=False)
-            embed3.add_field(name="📊 Options", value="Contracts to buy/sell at set prices", inline=False)
-            embed3.add_field(name="⚡ Gamma", value="Rate of delta change - options sensitivity", inline=False)
-            embed3.add_field(name="💎 Diamond Hands", value="Hold through volatility", inline=False)
-            embed3.add_field(name="🧻 Paper Hands", value="Sell at first sign of red", inline=False)
-            embed3.set_footer(text="Turd News Network v6.0 • Part 3/4")
-            
-            # Embed 4: Advanced Terms
-            embed4 = discord.Embed(
-                title="🚀 Advanced Terms",
+                title="🔍 Due Diligence (DD) - Research Time!",
                 color=0x9B59B6,
                 timestamp=datetime.now()
             )
-            embed4.add_field(name="👀 Short Interest", value="% of shares sold short", inline=False)
-            embed4.add_field(name="🏛️ Congress Trading", value="Trades by US politicians", inline=False)
-            embed4.add_field(name="👤 Insider Trading", value="Trades by company executives", inline=False)
-            embed4.add_field(name="📈 RSI", value="Relative Strength Index - momentum", inline=False)
-            embed4.add_field(name="💵 EPS", value="Earnings Per Share", inline=False)
-            embed4.set_footer(text="Turd News Network v6.0 • Part 4/4")
+            embed3.add_field(name="🔬 DD - Due Diligence", value="Doing your homework before buying! It's like reading reviews before buying a video game.", inline=False)
+            embed3.add_field(name="📊 Fundamental Analysis (FA/FD)", value="Looking at the company's MONEY stuff - earnings, revenue, debt. Like checking if your friend's lemonade stand is actually making money!", inline=False)
+            embed3.add_field(name="📈 Technical Analysis (TA)", value="Looking at CHART patterns to predict where price is going. Like looking at weather patterns to predict tomorrow's weather!", inline=False)
+            embed3.add_field(name="🏢 Company Fundamentals", value="**Revenue** = How much money they make\n**Earnings/Profit** = Money left after paying bills\n**P/E Ratio** = Price compared to earnings - is the stock expensive or cheap?", inline=False)
+            embed3.set_footer(text="Turd News Network • Part 3/10")
+            
+            # Embed 4: Important Metrics
+            embed4 = discord.Embed(
+                title="📊 Key Numbers to Know",
+                color=0xE74C3C,
+                timestamp=datetime.now()
+            )
+            embed4.add_field(name="💵 EPS", value="Earnings Per Share - How much profit the company makes for EACH stock. More is better! Like splitting a pizza - bigger slices = more profit per person.", inline=False)
+            embed4.add_field(name="📈 P/E Ratio", value="Price to Earnings - How expensive is the stock? Lower can mean 'on sale' but not always!", inline=False)
+            embed4.add_field(name="📉 RSI", value="Relative Strength Index - Is the stock OVERBOUGHT (too expensive, might drop) or OVERSOLD (might be a bargain)?", inline=False)
+            embed4.add_field(name="📊 Market Cap", value="Price × Number of stocks = Total company value. Big cap = big company. Small cap = smaller company with more room to grow!", inline=False)
+            embed4.set_footer(text="Turd News Network • Part 4/10")
+            
+            # Embed 5: Options Trading
+            embed5 = discord.Embed(
+                title="🎯 Options - Fancy Trading Tools",
+                color=0xFF6600,
+                timestamp=datetime.now()
+            )
+            embed5.add_field(name="📜 Options", value="Special contracts that let you BUY or SELL stocks at a certain price. They're like RESERVATION tickets for stocks!", inline=False)
+            embed5.add_field(name="📞 Call Option", value="A ticket that says 'I can BUY this stock at this price later.' Used when you think price will GO UP! 📈", inline=False)
+            embed5.add_field(name="📉 Put Option", value="A ticket that says 'I can SELL this stock at this price later.' Used when you think price will GO DOWN! 📉", inline=False)
+            embed5.add_field(name="💰 Premium", value="The price you pay for an option ticket. Like a non-refundable deposit!", inline=False)
+            embed5.add_field(name="Strike Price", value="The price the option lets you buy/sell at. Like the price written on your coupon!", inline=False)
+            embed5.set_footer(text="Turd News Network • Part 5/10")
+            
+            # Embed 6: Short Selling
+            embed6 = discord.Embed(
+                title="🔥 Short Selling - Betting Against",
+                color=0xFF0000,
+                timestamp=datetime.now()
+            )
+            embed6.add_field(name="🐻 Shorting", value="Borrowing a stock, selling it, hoping to buy it back cheaper! Like borrowing your mom's jewelry, selling it, and hoping you can buy it back for less!", inline=False)
+            embed6.add_field(name="👀 Short Interest", value="How many shares people have borrowed and sold short. HIGH short interest = lots of people bet against it!", inline=False)
+            embed6.add_field(name="🔥 Short Squeeze", value="When a stock goes UP but short sellers MUST buy it back (to cut losses), causing even MORE price increases! Like panic buying!", inline=False)
+            embed6.add_field(name="📊 Days to Cover", value="How many days it'd take for short sellers to buy back all their borrowed shares. More days = harder to squeeze!", inline=False)
+            embed6.set_footer(text="Turd News Network • Part 6/10")
+            
+            # Embed 7: Advanced Analysis
+            embed7 = discord.Embed(
+                title="📈📉 Technical Analysis - Chart Reading",
+                color=0x3498DB,
+                timestamp=datetime.now()
+            )
+            embed7.add_field(name="🕯️ Candlestick", value="A type of price chart showing open, high, low, close. Green = went up, Red = went down!", inline=False)
+            embed7.add_field(name="📉 Support", value="A price 'floor' where the stock tends to stop falling. Like the floor beneath a bouncing ball!", inline=False)
+            embed7.add_field(name="📈 Resistance", value="A price 'ceiling' where the stock tends to stop rising. Like the ceiling that keeps the ball from going higher!", inline=False)
+            embed7.add_field(name="🔄 Breakout", value="When price goes ABOVE resistance - might keep going up!", inline=False)
+            embed7.add_field(name="💔 Breakdown", value="When price goes BELOW support - might keep going down!", inline=False)
+            embed7.set_footer(text="Turd News Network • Part 7/10")
+            
+            # Embed 8: Sentiment & Social
+            embed8 = discord.Embed(
+                title="👥 Sentiment & Social - What Are Others Doing?",
+                color=0x9B59B6,
+                timestamp=datetime.now()
+            )
+            embed8.add_field(name="💎 Diamond Hands", value="Investors who HOLD onto their stocks through the rough times. They're strong like diamonds!", inline=False)
+            embed8.add_field(name="🧻 Paper Hands", value="Investors who sell at the first sign of trouble. Like paper - weak!", inline=False)
+            embed8.add_field(name="🐒 Ape", value="A term for retail investors who band together. Like monkeys working together!", inline=False)
+            embed8.add_field(name="🌙 To the Moon", value="When people think a stock will go WAY up in price! 🚀", inline=False)
+            embed8.add_field(name="📊 Sentiment", value="How do people FEEL about a stock? Bullish = excited/hopeful, Bearish = worried/negative.", inline=False)
+            embed8.set_footer(text="Turd News Network • Part 8/10")
+            
+            # Embed 9: Special Events
+            embed9 = discord.Embed(
+                title="⭐ Special Events & Data",
+                color=0xE67E22,
+                timestamp=datetime.now()
+            )
+            embed9.add_field(name="📅 Earnings", value="When a company tells everyone how much money they made! Big earnings = stock price might move a LOT!", inline=False)
+            embed9.add_field(name="👤 Insider Trading", value="When people who RUN the company buy or sell stock. If insiders are buying, they might know something good!", inline=False)
+            embed9.add_field(name="🏛️ Congress Trading", value="When US politicians trade stocks. They have to report their trades publicly!", inline=False)
+            embed9.add_field(name="📊 IPO", value="Initial Public Offering - When a company first sells stock to the public! Like a grand opening!", inline=False)
+            embed9.add_field(name="🔄 Split", value="When a company divides each share into more shares. The pizza gets cut into more slices, but you still own the same amount!", inline=False)
+            embed9.set_footer(text="Turd News Network • Part 9/10")
+            
+            # Embed 10: Risk & Strategy
+            embed10 = discord.Embed(
+                title="🎓 Risk & Strategy - How to Not Lose",
+                color=0x1ABC9C,
+                timestamp=datetime.now()
+            )
+            embed10.add_field(name="🛡️ Stop Loss", value="An automatic sell order if price drops too much. Like an emergency exit!", inline=False)
+            embed10.add_field(name="📊 Position Sizing", value="How much of your money you put in ONE stock. Don't put all eggs in one basket!", inline=False)
+            embed10.add_field(name="⚖️ Risk/Reward", value="How much you could GAIN vs how much you could LOSE. Always want more upside than downside!", inline=False)
+            embed10.add_field(name="📈 Diversification", value="Buying many different stocks so if one fails, you don't lose everything!", inline=False)
+            embed10.add_field(name="💡 Key Rule", value="Only invest what you can afford to lose! Never invest rent money or food money!", inline=False)
+            embed10.set_footer(text="Turd News Network • Part 10/10 • /search [ticker] to learn more!")
             
             # Send all embeds
             await channel.send(embed=embed1)
             await channel.send(embed=embed2)
             await channel.send(embed=embed3)
-            msg = await channel.send(embed=embed4)
+            await channel.send(embed=embed4)
+            await channel.send(embed=embed5)
+            await channel.send(embed=embed6)
+            await channel.send(embed=embed7)
+            await channel.send(embed=embed8)
+            await channel.send(embed=embed9)
+            msg = await channel.send(embed=embed10)
             await msg.pin()
             
-            print(f"[PIN] ✅ Pinned glossary message")
+            print(f"[PIN] ✅ Pinned comprehensive glossary (10 parts)")
             
         except Exception as e:
             print(f"[PIN ERROR] Failed to create pinned message: {e}")
