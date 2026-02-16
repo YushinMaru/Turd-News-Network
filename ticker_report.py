@@ -833,75 +833,223 @@ class TickerReportBuilder:
             "timestamp": datetime.utcnow().isoformat(),
         }
 
-    # -- EMBED 5: ACTIONS & COMMANDS --------------------------------------------
+    # -- EMBED 5: LIVE MARKET DATA ---------------------------------------------
 
     def _embed_actions(self, sd: Dict) -> Dict:
-        """Embed 5: Actions, Commands, and Quick Links"""
+        """Embed 5: Comprehensive Live Market Data - All in one place"""
         ticker = sd['ticker']
         price = sd.get('price', 0)
+        change = sd.get('change_pct', 0)
+        w52h = sd.get('52w_high')
+        w52l = sd.get('52w_low')
         fields = []
         
-        # ===== SLASH COMMANDS =====
-        cmd_info = "**Available Slash Commands:**\n"
-        cmd_info += "━━━━━━━━━━━━━━━━━━━━━━\n"
-        cmd_info += f"🔍 `/search {ticker}` - Full detailed report\n"
-        cmd_info += f"⭐ `/watchlist add {ticker}` - Add to watchlist\n"
-        cmd_info += f"⭐ `/watchlist remove {ticker}` - Remove from watchlist\n"
-        cmd_info += f"🔔 `/alert {ticker} above $XXX` - Set price alert\n"
-        cmd_info += f"📊 `/report {ticker}` - Generate HTML report\n"
-        cmd_info += f"📈 `/market` - Market overview\n"
-        cmd_info += f"👀 `/insider` - Insider activity feed\n"
-        cmd_info += f"🏛️ `/congress` - Congress trading\n"
+        # ===== ANALYST PRICE TARGETS =====
+        target = sd.get('price_target')
+        rating = sd.get('analyst_rating')
         
-        fields.append({"name": "⌨️ SLASH COMMANDS", "value": cmd_info, "inline": False})
-        
-        # ===== QUICK ACTIONS =====
-        action_info = "**Quick Actions:**\n"
-        action_info += "━━━━━━━━━━━━━━━━━━━━━━\n"
-        
-        # Research links
-        action_info += f"📊 [Full Report](https://stockanalysis.com/stocks/{ticker}) - Comprehensive analysis\n"
-        action_info += f"📈 [TradingView](https://www.tradingview.com/symbols/{ticker}) - Advanced charts\n"
-        action_info += f"📰 [News](https://finance.yahoo.com/quote/{ticker}/news) - Latest news\n"
-        action_info += f"💼 [SEC Filings](https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={ticker}) - Regulatory filings\n"
-        
-        fields.append({"name": "🔗 QUICK LINKS", "value": action_info, "inline": False})
-        
-        # ===== WATCHLIST COMMANDS =====
-        watch_info = "**Watchlist Management:**\n"
-        watch_info += "━━━━━━━━━━━━━━━━━━━━━━\n"
-        watch_info += f"To track {ticker} in your watchlist:\n"
-        watch_info += f"• Type: `/watchlist add {ticker}`\n"
-        watch_info += f"• View: `/watchlist list`\n"
-        watch_info += f"• Remove: `/watchlist remove {ticker}`\n"
-        
-        fields.append({"name": "⭐ WATCHLIST", "value": watch_info, "inline": False})
-        
-        # ===== ALERT COMMANDS =====
-        alert_info = "**Price Alerts:**\n"
-        alert_info += "━━━━━━━━━━━━━━━━━━━━━━\n"
-        alert_info += f"Current Price: **${price:.2f}**\n\n"
-        alert_info += "Set alerts with these commands:\n"
-        
-        if price > 0:
-            up_5 = price * 1.05
-            down_5 = price * 0.95
-            up_10 = price * 1.10
-            down_10 = price * 0.90
+        if target and price:
+            upside = ((float(target) - float(price)) / float(price)) * 100
+            upside_emoji = '🟢' if upside > 0 else '🔴'
             
-            alert_info += f"• `/alert {ticker} above ${up_5:.2f}` (+5%)\n"
-            alert_info += f"• `/alert {ticker} below ${down_5:.2f}` (-5%)\n"
-            alert_info += f"• `/alert {ticker} above ${up_10:.2f}` (+10%)\n"
-            alert_info += f"• `/alert {ticker} below ${down_10:.2f}` (-10%)\n"
+            target_str = f"🎯 **${float(target):.2f}** {upside_emoji} {upside:+.1f}%\n"
+            
+            if rating:
+                rating_emoji = '🟢' if rating in ['buy', 'strongBuy'] else '🔴' if rating in ['sell', 'strongSell'] else '🟡'
+                target_str += f"Consensus: {rating_emoji} {rating.title()}"
+            
+            fields.append({"name": "📊 PRICE TARGET", "value": target_str, "inline": True})
         
-        alert_info += "\n• `/alerts` - View your active alerts"
+        # ===== 52W POSITION =====
+        if w52h and w52l and price:
+            pct_from_low = ((price - w52l) / w52l) * 100
+            pct_from_high = ((price - w52h) / w52h) * 100
+            
+            # Visual progress bar
+            total_range = w52h - w52l
+            if total_range > 0:
+                position = (price - w52l) / total_range
+                bar_len = 10
+                filled = int(position * bar_len)
+                bar = '█' * filled + '░' * (bar_len - filled)
+                pos_emoji = '🔥' if position > 0.8 else '🚀' if position > 0.5 else '📍'
+            else:
+                bar = '░' * 10
+                pos_emoji = '📍'
+            
+            pos_str = f"{pos_emoji} **{position*100:.0f}%** of range\n"
+            pos_str += f"{bar}\n"
+            pos_str += f"Low: ${w52l:.2f} | High: ${w52h:.2f}"
+            
+            fields.append({"name": "📈 52W POSITION", "value": pos_str, "inline": True})
         
-        fields.append({"name": "🔔 PRICE ALERTS", "value": alert_info, "inline": False})
+        # ===== VOLUME ANALYSIS =====
+        vol = sd.get('volume')
+        avg_vol = sd.get('avg_volume')
+        
+        if vol and avg_vol:
+            vol_ratio = vol / avg_vol if avg_vol > 0 else 1
+            vol_emoji = '🔥' if vol_ratio > 1.5 else '📊'
+            vol_status = 'HIGH' if vol_ratio > 1.5 else 'NORMAL' if vol_ratio > 0.8 else 'LOW'
+            
+            vol_str = f"{vol_emoji} **{vol_ratio:.1f}x** avg volume\n"
+            vol_str += f"Status: **{vol_status}**\n"
+            vol_str += f"Today: {self._fmt_num(vol, prefix='')}\n"
+            vol_str += f"Avg: {self._fmt_num(avg_vol, prefix='')}"
+            
+            fields.append({"name": "📊 VOLUME", "value": vol_str, "inline": True})
+        
+        # ===== EARNINGS & DIVIDENDS =====
+        earnings = sd.get('earnings_date')
+        div_yield = sd.get('dividend_yield')
+        
+        earnings_str = ""
+        if earnings:
+            if isinstance(earnings, (list, tuple)):
+                earnings = earnings[0] if earnings else None
+            
+            if earnings:
+                try:
+                    if hasattr(earnings, 'date'):
+                        days_until = (earnings.date() - datetime.now().date()).days
+                    else:
+                        # Try parsing string
+                        earnings_dt = datetime.strptime(str(earnings)[:10], '%Y-%m-%d')
+                        days_until = (earnings_dt.date() - datetime.now().date()).days
+                    
+                    if days_until > 0:
+                        earnings_str = f"📅 **{days_until} days**\n"
+                        earnings_str += f"Earnings: {str(earnings)[:10]}"
+                    elif days_until == 0:
+                        earnings_str = "📅 **TODAY**"
+                    else:
+                        earnings_str = f"📅 Past"
+                except:
+                    earnings_str = f"📅 {str(earnings)[:10]}"
+            else:
+                earnings_str = "📅 N/A"
+        else:
+            earnings_str = "📅 N/A"
+        
+        if div_yield:
+            div_str = f"\n💵 **{self._fmt_pct(div_yield)}** yield"
+        else:
+            div_str = "\n💵 None"
+        
+        earnings_str += div_str
+        fields.append({"name": "📅 EARNINGS & DIVIDENDS", "value": earnings_str, "inline": True})
+        
+        # ===== OPTIONS DATA =====
+        options_data = sd.get('options_data')
+        
+        if options_data:
+            pc_ratio = options_data.get('pc_ratio')
+            max_pain = options_data.get('max_pain')
+            total_call_vol = options_data.get('total_call_vol', 0)
+            total_put_vol = options_data.get('total_put_vol', 0)
+            
+            if pc_ratio is not None:
+                if pc_ratio < 0.5:
+                    pc_emoji = '🟢'
+                    pc_status = 'Bullish'
+                elif pc_ratio > 1.5:
+                    pc_emoji = '🔴'
+                    pc_status = 'Bearish'
+                else:
+                    pc_emoji = '🟡'
+                    pc_status = 'Neutral'
+                
+                opt_str = f"📊 P/C: **{pc_ratio:.2f}** {pc_emoji}\n"
+                opt_str += f"Signal: **{pc_status}**\n"
+                
+                if max_pain:
+                    opt_str += f"Max Pain: ${max_pain:.2f}\n"
+                
+                opt_str += f"Vol: {self._fmt_num(total_call_vol + total_put_vol, prefix='')}"
+                
+                fields.append({"name": "🎰 OPTIONS", "value": opt_str, "inline": True})
+        
+        # ===== TECHNICAL SIGNALS =====
+        indicators = sd.get('technical_indicators', {})
+        
+        tech_signals = []
+        
+        # RSI
+        rsi = indicators.get('rsi')
+        if rsi is not None:
+            if rsi < 30:
+                rsi_signal = '🟢 Oversold'
+            elif rsi > 70:
+                rsi_signal = '🔴 Overbought'
+            else:
+                rsi_signal = '🟡 Neutral'
+            tech_signals.append(f"RSI: {rsi:.0f} {rsi_signal}")
+        
+        # MACD
+        macd = indicators.get('macd')
+        if macd is not None:
+            macd_signal = '🟢 Bullish' if macd > 0 else '🔴 Bearish'
+            tech_signals.append(f"MACD {macd_signal}")
+        
+        # Price vs MAs
+        sma_20 = indicators.get('sma_20')
+        sma_50 = indicators.get('sma_50')
+        
+        if sma_20 and price:
+            if price > sma_20:
+                tech_signals.append(f"🟢 Price > SMA20")
+            else:
+                tech_signals.append(f"🔴 Price < SMA20")
+        
+        if sma_50 and price:
+            if price > sma_50:
+                tech_signals.append(f"🟢 Price > SMA50")
+            else:
+                tech_signals.append(f"🔴 Price < SMA50")
+        
+        # ADX
+        adx = indicators.get('adx')
+        if adx is not None:
+            if adx >= 25:
+                tech_signals.append(f"🟢 ADX: {adx:.0f} (Trending)")
+            else:
+                tech_signals.append(f"🟡 ADX: {adx:.0f} (Ranging)")
+        
+        if tech_signals:
+            tech_str = "\n".join(tech_signals[:6])
+            fields.append({"name": "📈 TECHNICALS", "value": tech_str, "inline": False})
+        
+        # ===== KEY LEVELS =====
+        levels = []
+        
+        # Fibonacci levels from stock_data if available
+        fib = sd.get('fibonacci')
+        if fib and fib.get('levels'):
+            fib_levels = fib.get('levels', {})
+            if 'R1' in fib_levels:
+                levels.append(f"🔴 R1: ${fib_levels['R1']:.2f}")
+            if 'S1' in fib_levels:
+                levels.append(f"🟢 S1: ${fib_levels['S1']:.2f}")
+        
+        # Add pivot if available
+        if indicators.get('sma_20'):
+            levels.append(f"📊 SMA20: ${indicators['sma_20']:.2f}")
+        
+        if levels:
+            levels_str = "\n".join(levels[:4])
+            fields.append({"name": "🎯 KEY LEVELS", "value": levels_str, "inline": True})
+        
+        # ===== QUICK COMMANDS =====
+        cmd_str = f"🔍 `/search {ticker}` - Refresh data\n"
+        cmd_str += f"⭐ `/watchlist add {ticker}` - Track it\n"
+        cmd_str += f"🔔 `/alert {ticker} above $XXX` - Alert"
+        
+        fields.append({"name": "⚡ QUICK COMMANDS", "value": cmd_str, "inline": False})
         
         return {
-            "title": f"⚡ {ticker} - Actions & Commands",
+            "title": f"⚡ {ticker} - Live Market Data",
             "color": COLOR_REPORT_OVERVIEW,
             "fields": fields,
-            "footer": {"text": "Turd News Network v6.0 | Actions"},
+            "footer": {"text": "Turd News Network v6.0 | Live Data"},
             "timestamp": datetime.utcnow().isoformat(),
         }
