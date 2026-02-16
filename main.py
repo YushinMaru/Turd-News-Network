@@ -27,6 +27,7 @@ from sentiment import SentimentAnalyzer
 from backtesting import EnhancedBacktester
 from stats_reporter import StatsReporter
 from watchlist_manager import WatchlistManager
+from moderation import ModerationCog
 
 
 # ============== SLASH COMMANDS ==============
@@ -627,6 +628,13 @@ class TurdNewsBot(commands.Bot):
         # Start background tasks
         await self.watchlist_manager.start_monitoring()
         self.reddit_scanner.start()
+        
+        # Load moderation cog
+        try:
+            await self.add_cog(ModerationCog(self))
+            print("[MOD] Moderation cog loaded successfully")
+        except Exception as e:
+            print(f"[MOD] Error loading moderation cog: {e}")
         
         # Register slash commands
         self.tree.add_command(self.slash_cmds.search)
