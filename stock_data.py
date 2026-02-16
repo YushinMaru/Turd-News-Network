@@ -738,11 +738,13 @@ class StockDataFetcher:
                 return None
 
             # Save historical data using display ticker (original ticker without exchange suffix)
-            self.db.save_price_history(display_ticker, hist)
+            if self.db:
+                self.db.save_price_history(display_ticker, hist)
 
             # Calculate technical indicators
             technical_indicators = self.calculate_technical_indicators(display_ticker, hist)
-            self.db.save_technical_indicators(display_ticker, technical_indicators)
+            if self.db:
+                self.db.save_technical_indicators(display_ticker, technical_indicators)
             
             prev_price = hist['Close'].iloc[-2] if len(hist) > 1 else current_price
             
@@ -844,12 +846,14 @@ class StockDataFetcher:
             }
             
             # Save metadata
-            self.db.save_stock_metadata(display_ticker, data)
+            if self.db:
+                self.db.save_stock_metadata(display_ticker, data)
 
             # Fetch and save recent news
             news_articles = self.get_recent_news(display_ticker, data['name'])
             if news_articles:
-                self.db.save_news_articles(display_ticker, news_articles)
+                if self.db:
+                    self.db.save_news_articles(display_ticker, news_articles)
                 data['recent_news'] = news_articles
             else:
                 data['recent_news'] = []
