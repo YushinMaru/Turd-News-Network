@@ -26,7 +26,7 @@ WEBHOOK_URL = os.environ.get('DISCORD_WEBHOOK_URL', '')
 ALERT_ROLE_ID = os.environ.get('ALERT_ROLE_ID', '<@&1315430425388789881>')
 
 # Discord Bot Configuration for Interactive Dashboard
-ENABLE_DASHBOARD = True  # Enable interactive dashboard
+ENABLE_DASHBOARD = False  # Disable interactive dashboard (DD scanner + slash commands only)
 DASHBOARD_CHANNEL_NAME = "stonk-bot"  # Channel name for dashboard
 DASHBOARD_REFRESH_INTERVAL = 30  # seconds between dashboard updates
 

@@ -1,14 +1,17 @@
-# Claude Code - Stonk Bot Project Context
+# Claude Code - Turd News Network Project Context
 
 ## Environment
 
 - **Runtime OS**: Windows 11, run via Command Prompt (`python main.py`)
-- **Claude Code OS**: WSL (Ubuntu) on Windows 11
-- **WSL project path**: `/mnt/c/Users/jzeitler/Desktop/Stonk Bot/`
-- **Windows project path**: `C:\Users\jzeitler\Desktop\Stonk Bot\`
 - **Python version**: 3.13+ (Windows native install)
 - **Database**: SQLite (`wsb_tracker_enhanced.db`) in project root, WAL mode, timeout=30s
 - **No virtual environment**: packages installed globally via `pip install`
+
+## Architecture
+
+The bot runs in two modes:
+1. **Reddit DD Scanner** - Scans subreddits every 3 hours for DD posts, posts to #stonks channel
+2. **Slash Commands** - 11 commands for user queries
 
 ## Rules
 
@@ -24,14 +27,14 @@
 9. **Keep embeds compact.** The bot uses a horizontal/compact embed layout. Don't make embeds verbose or add unnecessary fields.
 10. **Windows Command Prompt output.** Console prints must work in Windows cmd.exe. Emoji in print statements are fine (Windows Terminal supports them), but avoid ANSI escape codes unless wrapped in a compatibility check.
 
-## Project Structure
+## Project Structure (After Dashboard Removal)
 
 ### Active Source Files (imported and used)
 
 | File | Class/Purpose |
 |------|---------------|
-| `main.py` | `TurdNewsNetworkEnhanced` - Main orchestrator. Entry point. Modes: `--test`, `--single`, scheduled. |
-| `config.py` | All constants: webhook URL, thresholds, feature flags, colors, subreddit list, ignore tickers. |
+| `main.py` | `TurdNewsBot` - Main orchestrator. DD Scanner + 11 Slash Commands. NO dashboard UI. |
+| `config.py` | All constants: webhook URL, thresholds, feature flags, colors, subreddit list, ignore tickers. `ENABLE_DASHBOARD=False` |
 | `scraper.py` | `RedditScraper` - Scrapes Reddit JSON API, extracts tickers via regex, deduplicates by content hash. |
 | `stock_data.py` | `StockDataFetcher` - yfinance data, multi-exchange ticker validation, technical indicators, news. |
 | `analysis.py` | `AnalysisEngine` - Risk assessment, valuation, technical summary, momentum score, price alerts, quality score. |

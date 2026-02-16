@@ -1,175 +1,122 @@
 """
-Congress & Political Trading Tracker
-Fetches recent Congressional stock trades via Finnhub free tier API.
-Cross-references mentioned tickers with politician trades.
+Congressional Trading Tracker
+Fetches live congressional trading data from the Senate Stock Watcher API
 """
 
 import requests
-import time
+import json
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-from config import (
-    FINNHUB_API_KEY, CONGRESS_LOOKBACK_DAYS, CONGRESS_CACHE_HOURS,
-    USER_AGENT, API_DELAY
-)
+from typing import List, Dict, Optional
 
+# Use the publicly available Senate Stock Watcher API
+SENATE_API_URL = "https://senatestockwatcher.com/backend/api/trades"
+HOUSE_API_URL = "https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json"
 
-class CongressTracker:
-    """Tracks Congressional stock trades using Finnhub API"""
+def fetch_senate_trades(days_back: int = 90) -> List[Dict]:
+    """Fetch recent Senate trading activity"""
+    trades = []
+    
+    try:
+        # Try the Senate Stock Watcher API
+        response = requests.get(
+            SENATE_API_URL,
+            params={"days": days_back},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            for item in data:
+                if item.get("ticker"):
+                    trades.append({
+                        'ticker': item.get('ticker', '').upper(),
+                        'member': item.get('member', 'Unknown'),
+                        'type': item.get('transaction_type', 'N/A'),
+                        'amount': item.get('amount', 'N/A'),
+                        'date': item.get('transaction_date', ''),
+                        'chamber': 'Senate'
+                    })
+    except Exception as e:
+        print(f"[CONGRESS] Error fetching Senate data: {e}")
+    
+    return trades
 
-    FINNHUB_BASE = 'https://finnhub.io/api/v1'
+def fetch_house_trades(days_back: int = 90) -> List[Dict]:
+    """Fetch recent House trading activity"""
+    trades = []
+    
+    try:
+        response = requests.get(HOUSE_API_URL, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            cutoff_date = datetime.now() - timedelta(days=days_back)
+            
+            for item in data:
+                try:
+                    date_str = item.get('transaction_date', '')
+                    if date_str:
+                        trans_date = datetime.strptime(date_str, '%Y-%m-%d')
+                        if trans_date < cutoff_date:
+                            continue
+                    
+                    if item.get("ticker"):
+                        trades.append({
+                            'ticker': item.get('ticker', '').upper(),
+                            'member': item.get('member', 'Unknown'),
+                            'type': item.get('transaction_type', 'N/A'),
+                            'amount': item.get('amount', 'N/A'),
+                            'date': date_str,
+                            'chamber': 'House'
+                        })
+                except:
+                    continue
+    except Exception as e:
+        print(f"[CONGRESS] Error fetching House data: {e}")
+    
+    return trades
 
-    def __init__(self, db_manager):
-        self.db = db_manager
-        self.enabled = bool(FINNHUB_API_KEY)
-        if not self.enabled:
-            print("   [i] Congress tracker disabled: no FINNHUB_API_KEY set")
+def fetch_all_congress_trades(days_back: int = 90) -> List[Dict]:
+    """Fetch all recent congressional trades (Senate + House)"""
+    all_trades = []
+    
+    senate_trades = fetch_senate_trades(days_back)
+    print(f"[CONGRESS] Fetched {len(senate_trades)} Senate trades")
+    
+    house_trades = fetch_house_trades(days_back)
+    print(f"[CONGRESS] Fetched {len(house_trades)} House trades")
+    
+    all_trades.extend(senate_trades)
+    all_trades.extend(house_trades)
+    
+    # Sort by date, most recent first
+    all_trades.sort(key=lambda x: x.get('date', ''), reverse=True)
+    
+    return all_trades
 
-    def _finnhub_get(self, endpoint: str, params: Dict) -> Optional[Dict]:
-        """Make an authenticated GET request to Finnhub"""
-        params['token'] = FINNHUB_API_KEY
-        headers = {'User-Agent': USER_AGENT}
-        try:
-            resp = requests.get(
-                f'{self.FINNHUB_BASE}{endpoint}',
-                params=params,
-                headers=headers,
-                timeout=15
-            )
-            if resp.status_code == 200:
-                return resp.json()
-            if resp.status_code == 429:
-                print("   [!] Finnhub rate limit hit, backing off...")
-                time.sleep(API_DELAY * 3)
-                return None
-            return None
-        except Exception as e:
-            print(f"   [X] Finnhub request failed: {e}")
-            return None
+# Cache for storing fetched data
+_trades_cache = None
+_cache_time = None
+CACHE_DURATION = 300  # 5 minutes
 
-    def refresh_congress_data(self, ticker: str) -> List[Dict]:
-        """Fetch fresh Congress trade data from Finnhub for a ticker"""
-        if not self.enabled:
-            return []
+def get_congress_trades_cached(days_back: int = 90) -> List[Dict]:
+    """Get congress trades with caching"""
+    global _trades_cache, _cache_time
+    
+    now = datetime.now()
+    
+    if _trades_cache is None or _cache_time is None or (now - _cache_time).seconds > CACHE_DURATION:
+        print("[CONGRESS] Refreshing congress trades cache...")
+        _trades_cache = fetch_all_congress_trades(days_back)
+        _cache_time = now
+    
+    return _trades_cache
 
-        data = self._finnhub_get('/stock/congressional-trading', {'symbol': ticker})
-        if not data or 'data' not in data:
-            return []
-
-        cutoff = datetime.now() - timedelta(days=CONGRESS_LOOKBACK_DAYS)
-        trades = []
-
-        for entry in data['data']:
-            txn_date_str = entry.get('transactionDate', '')
-            if not txn_date_str:
-                continue
-
-            try:
-                txn_date = datetime.strptime(txn_date_str, '%Y-%m-%d')
-            except ValueError:
-                continue
-
-            if txn_date < cutoff:
-                continue
-
-            amount_from = entry.get('amountFrom', 0) or 0
-            amount_to = entry.get('amountTo', 0) or 0
-            amount_range = self._format_amount_range(amount_from, amount_to)
-
-            raw_type = (entry.get('transactionType') or '').strip()
-            txn_type = self._normalize_transaction_type(raw_type)
-
-            chamber = self._guess_chamber(entry.get('position', ''))
-
-            trade = {
-                'ticker': ticker,
-                'politician_name': entry.get('name', 'Unknown'),
-                'party': '',
-                'chamber': chamber,
-                'transaction_type': txn_type,
-                'amount_range': amount_range,
-                'transaction_date': txn_date_str,
-                'disclosure_date': entry.get('filingDate', ''),
-            }
-            trades.append(trade)
-
-        if trades:
-            self.db.save_congress_trades(trades)
-
-        return trades
-
-    def check_congress_trades(self, ticker: str) -> List[Dict]:
-        """Get recent Congress trades for a ticker (cache-aware)"""
-        if not self.enabled:
-            return []
-
-        cached = self.db.get_congress_trades(ticker, days=CONGRESS_LOOKBACK_DAYS)
-        if cached:
-            return cached
-
-        cache_age = self.db.get_congress_cache_age_hours()
-        if cache_age is not None and cache_age < CONGRESS_CACHE_HOURS:
-            return []
-
-        trades = self.refresh_congress_data(ticker)
-        return trades
-
-    @staticmethod
-    def _format_amount_range(amount_from: float, amount_to: float) -> str:
-        """Format dollar amount range into readable string"""
-        def fmt(val):
-            if val >= 1_000_000:
-                return f"${val / 1_000_000:.1f}M"
-            if val >= 1_000:
-                return f"${val / 1_000:.0f}K"
-            if val > 0:
-                return f"${val:,.0f}"
-            return ""
-
-        low = fmt(amount_from)
-        high = fmt(amount_to)
-        if low and high and low != high:
-            return f"{low}-{high}"
-        return high or low or "N/A"
-
-    @staticmethod
-    def _normalize_transaction_type(raw: str) -> str:
-        """Normalize transaction type strings"""
-        lower = raw.lower()
-        if 'purchase' in lower or 'buy' in lower:
-            return 'PURCHASE'
-        if 'sale' in lower and 'partial' in lower:
-            return 'SALE (PARTIAL)'
-        if 'sale' in lower or 'sold' in lower:
-            return 'SALE'
-        if 'exchange' in lower:
-            return 'EXCHANGE'
-        return raw.upper() if raw else 'UNKNOWN'
-
-    @staticmethod
-    def _guess_chamber(position: str) -> str:
-        """Try to determine chamber from position field"""
-        if not position:
-            return ''
-        lower = position.lower()
-        if 'senator' in lower or 'senate' in lower:
-            return 'Senate'
-        if 'representative' in lower or 'rep.' in lower or 'house' in lower:
-            return 'House'
-        return ''
-
-    @staticmethod
-    def format_for_embed(trades: List[Dict]) -> Optional[Dict]:
-        """Format Congress trades into an embed-ready dict"""
-        if not trades:
-            return None
-
-        buys = [t for t in trades if 'PURCHASE' in t.get('transaction_type', '')]
-        sells = [t for t in trades if 'SALE' in t.get('transaction_type', '')]
-
-        return {
-            'total': len(trades),
-            'buys': len(buys),
-            'sells': len(sells),
-            'trades': trades[:5],
-        }
+if __name__ == "__main__":
+    # Test the fetcher
+    trades = fetch_all_congress_trades(90)
+    print(f"Total trades: {len(trades)}")
+    
+    # Show sample
+    for trade in trades[:5]:
+        print(f"  {trade}")
