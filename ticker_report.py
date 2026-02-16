@@ -1039,13 +1039,6 @@ class TickerReportBuilder:
             levels_str = "\n".join(levels[:4])
             fields.append({"name": "🎯 KEY LEVELS", "value": levels_str, "inline": True})
         
-        # ===== QUICK COMMANDS =====
-        cmd_str = f"🔍 `/search {ticker}` - Refresh data\n"
-        cmd_str += f"⭐ `/watchlist add {ticker}` - Track it\n"
-        cmd_str += f"🔔 `/alert {ticker} above $XXX` - Alert"
-        
-        fields.append({"name": "⚡ QUICK COMMANDS", "value": cmd_str, "inline": False})
-        
         return {
             "title": f"⚡ {ticker} - Live Market Data",
             "color": COLOR_REPORT_OVERVIEW,
