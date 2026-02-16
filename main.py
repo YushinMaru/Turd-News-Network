@@ -649,6 +649,18 @@ class TurdNewsBot(commands.Bot):
         self.tree.add_command(self.slash_cmds.alerts)
         self.tree.add_command(self.slash_cmds.report)
         
+        # Register moderation commands from cog
+        try:
+            mod_cog = self.get_cog("ModerationCog")
+            if mod_cog:
+                for cmd in mod_cog.walk_commands():
+                    self.tree.add_command(cmd)
+                print(f"[MOD] Added {len(list(mod_cog.walk_commands()))} mod commands to tree")
+            else:
+                print("[MOD] WARNING: ModerationCog not found")
+        except Exception as e:
+            print(f"[MOD] Error adding mod commands: {e}")
+        
         # Sync commands with Discord
         try:
             await self.tree.sync()
