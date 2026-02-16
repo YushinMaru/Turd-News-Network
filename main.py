@@ -50,7 +50,7 @@ class SlashCommands:
             
             ticker = ticker.strip().upper()
             loop = asyncio.get_running_loop()
-            embeds, chart_path = await loop.run_in_executor(
+            embeds, chart_path, chart_paths = await loop.run_in_executor(
                 None, builder.build_report_sync, ticker
             )
             
@@ -449,14 +449,8 @@ class SlashCommands:
                 )
                 return
             
-            embed = discord.Embed(
-                title="📅 Earnings Calendar",
-                description="Upcoming earnings for your watchlist stocks",
-                color=0xE67E22,
-                timestamp=datetime.now()
-            )
-            
             loop = asyncio.get_running_loop()
+            earnings_data = []
             
             def fetch_earnings():
                 for item in watchlist[:15]:
@@ -464,18 +458,31 @@ class SlashCommands:
                     try:
                         data = fetcher.get_stock_data(ticker)
                         if data and data.get('earnings_date'):
-                            embed.add_field(
-                                name=f"${ticker}",
-                                value=f"📅 {data.get('earnings_date', 'TBA')}",
-                                inline=True
-                            )
+                            earnings_data.append({
+                                'ticker': ticker,
+                                'date': data.get('earnings_date', 'TBA')
+                            })
                     except:
                         continue
             
             await loop.run_in_executor(None, fetch_earnings)
             
-            if len(embed.fields) == 0:
+            embed = discord.Embed(
+                title="📅 Earnings Calendar",
+                description="Upcoming earnings for your watchlist stocks",
+                color=0xE67E22,
+                timestamp=datetime.now()
+            )
+            
+            if not earnings_data:
                 embed.description = "No earnings dates found for your watchlist stocks."
+            else:
+                for item in earnings_data:
+                    embed.add_field(
+                        name=f"${item['ticker']}",
+                        value=f"📅 {item['date']}",
+                        inline=True
+                    )
             
             embed.set_footer(text="Turd News Network - Earnings Calendar")
             await interaction.followup.send(embed=embed, ephemeral=True)
@@ -723,6 +730,9 @@ class TurdNewsBot(commands.Bot):
                 skipped_no_stock_data += 1
         
         print(f"[COMPLETE] Processed: {processed}/{len(all_posts)}")
+        
+        # Send summary embed after scan completes
+        await self.send_scan_summary(processed, skipped_already_sent, skipped_no_tickers, skipped_no_stock_data, all_posts)
     
     async def send_dd_to_channel(self, post, stock_list):
         """Send DD post to stonks channel"""
@@ -777,16 +787,19 @@ class TurdNewsBot(commands.Bot):
                         builder = TickerReportBuilder()
                         
                         loop = asyncio.get_running_loop()
-                        embeds_list, chart_path = await loop.run_in_executor(
+                        embeds_list, chart_path, chart_paths = await loop.run_in_executor(
                             None, builder.build_report_sync, ticker
                         )
                         
                         if embeds_list:
+                            print(f"[DD] Posting {len(embeds_list)} embeds for {ticker}")
                             embed_indices = [0, 1, 2, 3, 4]
                             
                             for idx in embed_indices:
                                 if idx < len(embeds_list):
                                     embed_dict = embeds_list[idx]
+                                    field_count = len(embed_dict.get('fields', []))
+                                    print(f"[DD]   Embed {idx}: {embed_dict.get('title', 'No title')} ({field_count} fields)")
                                     embed = discord.Embed(
                                         title=embed_dict.get('title'),
                                         description=embed_dict.get('description'),
@@ -802,7 +815,23 @@ class TurdNewsBot(commands.Bot):
                                     await stonks_channel.send(embed=embed)
                                     await asyncio.sleep(0.5)
                             
-                            if chart_path and os.path.exists(chart_path):
+                            print(f"[DD] ✅ Posted {len(embeds_list)} embeds for {ticker}")
+                            
+                            # Send all chart files (1 week, 3 month, 1 year)
+                            # Use chart_paths from builder (returned from stock_data) or fallback to sd
+                            charts_to_send = chart_paths if chart_paths else sd.get('chart_paths', [])
+                            if charts_to_send:
+                                for cp in charts_to_send:
+                                    if cp and os.path.exists(cp):
+                                        try:
+                                            basename = os.path.basename(cp)
+                                            chart_file = discord.File(cp, filename=basename)
+                                            await stonks_channel.send(file=chart_file)
+                                            print(f"[DD] Sent chart: {basename}")
+                                        except Exception as e:
+                                            print(f"[DD] Error sending chart {cp}: {e}")
+                            elif chart_path and os.path.exists(chart_path):
+                                # Fallback to single chart
                                 try:
                                     chart_file = discord.File(chart_path, filename=f"{ticker}_chart.png")
                                     await stonks_channel.send(file=chart_file)
@@ -810,7 +839,7 @@ class TurdNewsBot(commands.Bot):
                                     pass
                         
                     except Exception as e:
-                        await self._send_simple_embed(stonks_channel, sd, post)
+                        print(f"[DD ERROR] Ticker report failed for {ticker}: {e}")
                 
                 return True
                 
@@ -839,6 +868,157 @@ class TurdNewsBot(commands.Bot):
         )
         
         await channel.send(embed=embed)
+    
+    async def send_scan_summary(self, processed, skipped_already_sent, skipped_no_tickers, skipped_no_stock_data, all_posts):
+        """Send a summary embed after scan completes"""
+        try:
+            for guild in self.guilds:
+                stonks_channel = None
+                for ch in guild.text_channels:
+                    if ch.name == "stonks":
+                        stonks_channel = ch
+                        break
+                
+                if not stonks_channel:
+                    continue
+                
+                # Get top and bottom posts from this scan
+                if not all_posts:
+                    return
+                
+                # Sort by quality score
+                sorted_posts = sorted(all_posts, key=lambda x: x.get('quality_score', 0), reverse=True)
+                
+                # Top 5 posts
+                top_posts = sorted_posts[:5]
+                
+                # Bottom 5 posts (lowest quality)
+                bottom_posts = sorted_posts[-5:] if len(sorted_posts) >= 5 else sorted_posts
+                
+                # Create summary embed
+                summary_embed = discord.Embed(
+                    title="📊 **Daily DD Scan Summary**",
+                    description=f"Scan completed at {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                    color=0x3498DB,
+                    timestamp=datetime.now()
+                )
+                
+                # Stats
+                stats_text = f"**Posts Scanned:** {len(all_posts)}\n"
+                stats_text += f"**Processed:** {processed}\n"
+                stats_text += f"**Skipped (already sent):** {skipped_already_sent}\n"
+                stats_text += f"**Skipped (no tickers):** {skipped_no_tickers}\n"
+                stats_text += f"**Skipped (no stock data):** {skipped_no_stock_data}"
+                summary_embed.add_field(name="📈 Scan Stats", value=stats_text, inline=True)
+                
+                # Top posts
+                top_text = ""
+                for i, post in enumerate(top_posts, 1):
+                    quality = post.get('quality_score', 0)
+                    q_emoji = "💎" if quality >= 80 else "⭐" if quality >= 60 else "📊"
+                    title = post.get('title', 'No title')[:50]
+                    subreddit = post.get('subreddit', 'unknown')
+                    top_text += f"{q_emoji} {i}. [{title}...]({post.get('url', '')})\n"
+                    top_text += f"   r/{subreddit} | ⭐ {quality:.0f}\n"
+                summary_embed.add_field(name="🏆 Top 5 DD Posts", value=top_text, inline=False)
+                
+                # Bottom posts
+                bottom_text = ""
+                for i, post in enumerate(bottom_posts, 1):
+                    quality = post.get('quality_score', 0)
+                    q_emoji = "📊"
+                    title = post.get('title', 'No title')[:50]
+                    subreddit = post.get('subreddit', 'unknown')
+                    bottom_text += f"{q_emoji} {i}. [{title}...]({post.get('url', '')})\n"
+                    bottom_text += f"   r/{subreddit} | ⭐ {quality:.0f}\n"
+                summary_embed.add_field(name="📉 Bottom 5 DD Posts", value=bottom_text, inline=False)
+                
+                # Market overview
+                try:
+                    indices = ['SPY', 'QQQ', 'IWM', 'GLD', 'TLT', 'VIX']
+                    market_text = ""
+                    
+                    loop = asyncio.get_running_loop()
+                    
+                    def fetch_market():
+                        from stock_data import StockDataFetcher
+                        fetcher = StockDataFetcher(None)
+                        result = {}
+                        for ticker in indices:
+                            try:
+                                data = fetcher.get_stock_data(ticker)
+                                if data:
+                                    result[ticker] = data
+                            except:
+                                continue
+                            time.sleep(0.3)
+                        return result
+                    
+                    market_data = await loop.run_in_executor(None, fetch_market)
+                    
+                    for ticker, data in market_data.items():
+                        price = data.get('price', 0)
+                        change = data.get('change_pct', 0)
+                        emoji = "🟢" if change >= 0 else "🔴"
+                        market_text += f"{emoji} {ticker}: ${price:.2f} ({change:+.2f}%)\n"
+                    
+                    summary_embed.add_field(name="📈 Market Indices", value=market_text, inline=False)
+                    
+                    # NASDAQ Top/Bottom performers
+                    # NASDAQ-100 components (major ones)
+                    nasdaq_tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'AMD', 'INTC', 'NFLX', 
+                                     'ORCL', 'ADBE', 'CRM', 'PYPL', 'QCOM', 'TXN', 'AVGO', 'MU', 'LLY', 'NOW',
+                                     'INTU', 'AMAT', 'BKNG', 'GILD', 'ADP', 'REGN', 'ZMD', 'MELI', 'PANW', 'CDNS']
+                    
+                    nasdaq_data = {}
+                    
+                    def fetch_nasdaq():
+                        from stock_data import StockDataFetcher
+                        nasdaq_fetcher = StockDataFetcher(None)
+                        result = {}
+                        for ticker in nasdaq_tickers:
+                            try:
+                                data = nasdaq_fetcher.get_stock_data(ticker)
+                                if data and data.get('change_pct') is not None:
+                                    result[ticker] = data
+                            except:
+                                continue
+                            time.sleep(0.2)
+                        return result
+                    
+                    nasdaq_data = await loop.run_in_executor(None, fetch_nasdaq)
+                    
+                    # Sort by change percentage
+                    sorted_nasdaq = sorted(nasdaq_data.items(), key=lambda x: x[1].get('change_pct', 0), reverse=True)
+                    
+                    # Top 10 gainers
+                    top_10 = sorted_nasdaq[:10]
+                    top_text = ""
+                    for ticker, data in top_10:
+                        change = data.get('change_pct', 0)
+                        price = data.get('price', 0)
+                        top_text += f"🟢 {ticker}: ${price:.2f} ({change:+.2f}%)\n"
+                    
+                    # Bottom 10 losers
+                    bottom_10 = sorted_nasdaq[-10:]
+                    bottom_text = ""
+                    for ticker, data in bottom_10:
+                        change = data.get('change_pct', 0)
+                        price = data.get('price', 0)
+                        bottom_text += f"🔴 {ticker}: ${price:.2f} ({change:+.2f}%)\n"
+                    
+                    summary_embed.add_field(name="🚀 NASDAQ Top Gainers", value=top_text, inline=True)
+                    summary_embed.add_field(name="📉 NASDAQ Bottom Losers", value=bottom_text, inline=True)
+                except Exception as e:
+                    print(f"[SUMMARY] Error fetching market data: {e}")
+                
+                summary_embed.set_footer(text="Turd News Network | Daily Summary")
+                
+                await stonks_channel.send(embed=summary_embed)
+                print("[SUMMARY] Sent scan summary to channel")
+                
+        except Exception as e:
+            print(f"[SUMMARY] Error sending scan summary: {e}")
 
 
 # ============== MAIN ==============

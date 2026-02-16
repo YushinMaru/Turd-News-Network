@@ -112,11 +112,29 @@ def get_congress_trades_cached(days_back: int = 90) -> List[Dict]:
     
     return _trades_cache
 
-if __name__ == "__main__":
-    # Test the fetcher
-    trades = fetch_all_congress_trades(90)
-    print(f"Total trades: {len(trades)}")
+class CongressTracker:
+    """Wrapper class for compatibility with existing code"""
     
-    # Show sample
-    for trade in trades[:5]:
-        print(f"  {trade}")
+    def __init__(self, db=None):
+        self.db = db
+    
+    def check_congress_trades(self, ticker):
+        trades = get_congress_trades_cached(90)
+        ticker_trades = [t for t in trades if t.get('ticker', '').upper() == ticker.upper()]
+        return ticker_trades
+    
+    @staticmethod
+    def format_for_embed(trades):
+        if not trades:
+            return None
+        
+        buys = sum(1 for t in trades if 'PURCHASE' in str(t.get('type', '')).upper())
+        sells = sum(1 for t in trades if 'SALE' in str(t.get('type', '')).upper())
+        
+        return {
+            'trades': trades[:10],
+            'buys': buys,
+            'sells': sells,
+            'total': len(trades)
+        }
+

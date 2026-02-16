@@ -118,17 +118,17 @@ class TickerReportBuilder:
 
     # -- main build method -----------------------------------------------------
 
-    def build_report_sync(self, symbol: str) -> Tuple[Optional[List[Dict]], Optional[str]]:
+    def build_report_sync(self, symbol: str) -> Tuple[Optional[List[Dict]], Optional[str], Optional[List[str]]]:
         """
         Build 3 COMPREHENSIVE embeds with ALL the data.
-        Returns (list_of_embeds, chart_path) or (None, None) on failure.
+        Returns (list_of_embeds, chart_path, chart_paths) or (None, None, None) on failure.
         """
         symbol = symbol.upper().strip()
 
         # 1. Fetch base stock data (includes chart, options, insider, technicals)
         stock_data = self.stock_fetcher.get_stock_data(symbol)
         if not stock_data:
-            return None, None
+            return None, None, None
 
         ticker = stock_data['ticker']
 
@@ -204,7 +204,14 @@ class TickerReportBuilder:
             }]
 
         chart_path = stock_data.get('chart_path')
-        return embeds, chart_path
+        chart_paths = stock_data.get('chart_paths', [])
+        
+        # Debug logging
+        print(f"[TickerReport] chart_path: {chart_path}")
+        print(f"[TickerReport] chart_paths: {chart_paths}")
+        
+        # Return both - tuple of (embeds, single_chart_path, all_chart_paths)
+        return embeds, chart_path, chart_paths
 
     # -- EMBED 1: SENTIMENT + ML + PREDICTION ---------------------------------
 
@@ -865,7 +872,7 @@ class TickerReportBuilder:
         watch_info += "━━━━━━━━━━━━━━━━━━━━━━\n"
         watch_info += f"To track {ticker} in your watchlist:\n"
         watch_info += f"• Type: `/watchlist add {ticker}`\n"
-        watch_info += f"• View: Click ⭐ Watchlist button on dashboard\n"
+        watch_info += f"• View: `/watchlist list`\n"
         watch_info += f"• Remove: `/watchlist remove {ticker}`\n"
         
         fields.append({"name": "⭐ WATCHLIST", "value": watch_info, "inline": False})
@@ -890,21 +897,6 @@ class TickerReportBuilder:
         alert_info += "\n• `/alerts` - View your active alerts"
         
         fields.append({"name": "🔔 PRICE ALERTS", "value": alert_info, "inline": False})
-        
-        # ===== DASHBOARD BUTTONS =====
-        dash_info = "**Dashboard Actions:**\n"
-        dash_info += "━━━━━━━━━━━━━━━━━━━━━━\n"
-        dash_info += "Use the dashboard for more options:\n"
-        dash_info += "• 🔍 Quick Search - Detailed stock reports\n"
-        dash_info += "• 📊 Full Report - HTML company dashboard\n"
-        dash_info += "• ⭐ Watchlist - Track your stocks\n"
-        dash_info += "• 🔥 Top Movers - Best/worst performers\n"
-        dash_info += "• 🎯 Short Squeeze - High short interest\n"
-        dash_info += "• 👀 Insider Feed - Recent insider buys\n"
-        dash_info += "• 🏛️ Congress - Congressional trades\n"
-        dash_info += "• 📅 Earnings - Upcoming earnings"
-        
-        fields.append({"name": "🎛️ DASHBOARD", "value": dash_info, "inline": False})
         
         return {
             "title": f"⚡ {ticker} - Actions & Commands",
