@@ -861,12 +861,13 @@ class TurdNewsBot(commands.Bot):
                     except Exception as e:
                         print(f"[DD ERROR] Ticker report failed for {ticker}: {e}")
                 
-                return True
+                print(f"[DD] Posted to {guild.name} in #{stonks_channel.name}")
                 
         except Exception as e:
             print(f"[ERROR] send_dd_to_channel failed: {e}")
             return False
-        return False
+        
+        return True
     
     async def _send_simple_embed(self, channel, sd, post):
         """Fallback simple embed if ticker report fails"""
@@ -892,6 +893,16 @@ class TurdNewsBot(commands.Bot):
     async def send_scan_summary(self, processed, skipped_already_sent, skipped_no_tickers, skipped_no_stock_data, all_posts):
         """Send a summary embed after scan completes"""
         try:
+            # Early exit if no posts to summarize
+            if not all_posts:
+                print("[SUMMARY] No posts to summarize")
+                return
+            
+            # Sort posts once (outside the guild loop)
+            sorted_posts = sorted(all_posts, key=lambda x: x.get('quality_score', 0), reverse=True)
+            top_posts = sorted_posts[:5]
+            bottom_posts = sorted_posts[-5:] if len(sorted_posts) >= 5 else sorted_posts
+            
             for guild in self.guilds:
                 stonks_channel = None
                 for ch in guild.text_channels:
@@ -900,20 +911,8 @@ class TurdNewsBot(commands.Bot):
                         break
                 
                 if not stonks_channel:
+                    print(f"[SUMMARY] No #stonks channel found in {guild.name}, skipping")
                     continue
-                
-                # Get top and bottom posts from this scan
-                if not all_posts:
-                    return
-                
-                # Sort by quality score
-                sorted_posts = sorted(all_posts, key=lambda x: x.get('quality_score', 0), reverse=True)
-                
-                # Top 5 posts
-                top_posts = sorted_posts[:5]
-                
-                # Bottom 5 posts (lowest quality)
-                bottom_posts = sorted_posts[-5:] if len(sorted_posts) >= 5 else sorted_posts
                 
                 # Create summary embed
                 summary_embed = discord.Embed(
@@ -1035,10 +1034,51 @@ class TurdNewsBot(commands.Bot):
                 summary_embed.set_footer(text="Turd News Network | Daily Summary")
                 
                 await stonks_channel.send(embed=summary_embed)
-                print("[SUMMARY] Sent scan summary to channel")
+                print(f"[SUMMARY] Sent scan summary to {guild.name} in #{stonks_channel.name}")
+            
+            # Clean up temp charts after summary is posted to all servers
+            self._cleanup_temp_charts()
                 
         except Exception as e:
             print(f"[SUMMARY] Error sending scan summary: {e}")
+    
+    def _cleanup_temp_charts(self):
+        """Clean up all chart files after posting"""
+        try:
+            import shutil
+            
+            # Clear the main charts folder
+            charts_dir = 'charts'
+            if os.path.exists(charts_dir):
+                for item in os.listdir(charts_dir):
+                    item_path = os.path.join(charts_dir, item)
+                    try:
+                        if os.path.isfile(item_path):
+                            os.remove(item_path)
+                        elif os.path.isdir(item_path):
+                            shutil.rmtree(item_path)
+                    except Exception as e:
+                        print(f"[CLEANUP] Error removing {item_path}: {e}")
+                print(f"[CLEANUP] Cleared {charts_dir} folder")
+            
+            # Clear temp directories
+            temp_dirs = ['temp_charts', 'report_temp']
+            for temp_dir in temp_dirs:
+                if os.path.exists(temp_dir):
+                    for item in os.listdir(temp_dir):
+                        item_path = os.path.join(temp_dir, item)
+                        try:
+                            if os.path.isfile(item_path):
+                                os.remove(item_path)
+                            elif os.path.isdir(item_path):
+                                shutil.rmtree(item_path)
+                        except Exception as e:
+                            print(f"[CLEANUP] Error removing {item_path}: {e}")
+                    print(f"[CLEANUP] Cleared {temp_dir} folder")
+            
+            print("[CLEANUP] All chart folders cleared!")
+        except Exception as e:
+            print(f"[CLEANUP] Error during cleanup: {e}")
 
 
 # ============== MAIN ==============
